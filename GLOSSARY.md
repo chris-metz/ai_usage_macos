@@ -1,4 +1,4 @@
-# AI Usage
+# Pacemark
 
 A macOS menu bar app that shows at a glance how much of the usage limits of your own AI subscriptions is already used, and whether you are on pace.
 

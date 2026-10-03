@@ -6,7 +6,7 @@ Write everything in English: code, identifiers, comments, commit messages, docs,
 
 ### Issue tracker
 
-Issues live in GitHub Issues for chris-metz/ai_usage_macos, managed with the `gh` CLI. See `docs/agents/issue-tracker.md`.
+Issues live in GitHub Issues for chris-metz/pacemark, managed with the `gh` CLI. See `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 
