@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pacemark Icon Candidates</title>
+<!--
+  PROTOTYPE, THROW AWAY. Not production code.
+  Answers the ticket "What is the app called, and what does its icon look like?"
+  (https://github.com/chris-metz/pacemark/issues/11).
+
+  Five candidate glyphs (?variant=A–E) for the Pacemark menu bar item, each shown
+  in every state the item has (normal, stale, near the limit, persistent error,
+  icon only), on a light and a dark menu bar, plus the matching app icon.
+  Plain SVG drawn by hand; the real glyph is redrawn properly once a motif wins.
+  Start: open this file in a browser. Arrow keys switch the highlighted candidate.
+-->
+<style>
+  :root {
+    --bg: #f5f5f7; --card: #ffffff; --text: #1d1d1f; --secondary: #6e6e73; --line: rgba(0,0,0,.10);
+    --pick: #007aff;
+    --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, "Segoe UI", sans-serif;
+    --z: 2;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --bg: #161618; --card: #1f1f22; --text: #f5f5f7; --secondary: #a1a1a6; --line: rgba(255,255,255,.12); --pick: #0a84ff; color-scheme: dark; }
+  }
+  :root[data-theme="dark"] { --bg: #161618; --card: #1f1f22; --text: #f5f5f7; --secondary: #a1a1a6; --line: rgba(255,255,255,.12); --pick: #0a84ff; color-scheme: dark; }
+
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 var(--font); -webkit-font-smoothing: antialiased; padding: 24px 16px 96px; }
+  main { max-width: 1180px; margin: 0 auto; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  h2 { font-size: 16px; margin: 32px 0 4px; }
+  p.lead, p.note { color: var(--secondary); margin: 0 0 12px; max-width: 760px; }
+  .tag { display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: .4px; padding: 2px 7px; border-radius: 99px; background: #ff9f0a22; color: #c76a00; margin-bottom: 8px; }
+
+  .controls { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; margin: 12px 0 4px; font-size: 13px; }
+  .seg { display: inline-flex; background: var(--line); border-radius: 8px; padding: 2px; }
+  .seg button { font: inherit; border: 0; background: none; color: var(--secondary); padding: 3px 10px; border-radius: 6px; cursor: pointer; }
+  .seg button.on { background: var(--card); color: var(--text); box-shadow: 0 1px 2px rgba(0,0,0,.15); }
+
+  /* ---------- Menu bar strips ---------- */
+  .mb { display: inline-flex; align-items: center; height: 24px; padding: 0 6px; border-radius: 6px; gap: 2px; zoom: var(--z); white-space: nowrap; }
+  .mb.light { background: linear-gradient(135deg, #b9cdfb, #f1dcf3); color: rgba(0,0,0,.85); }
+  .mb.dark  { background: linear-gradient(135deg, #18234a, #3a1c34); color: rgba(255,255,255,.92); }
+  .mb.wide { width: 100%; justify-content: flex-end; padding: 0 10px; border-radius: 0; }
+  .si { display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 6px; border-radius: 5px; }
+  .si.ours { background: color-mix(in srgb, currentColor 14%, transparent); }
+  .si svg { display: block; width: 16px; height: 16px; flex: none; }
+  .pct { font-size: 13px; font-weight: 500; font-variant-numeric: tabular-nums; letter-spacing: -.1px; }
+  .pct.dim { opacity: .3; }
+  .light .pct.red { color: #ff3b30; }
+  .dark .pct.red { color: #ff453a; }
+  .clock { font-size: 13px; font-weight: 500; padding: 0 6px; }
+
+  .context { border-radius: 10px; overflow: hidden; border: 1px solid var(--line); }
+  .context .mb { display: flex; }
+
+  /* ---------- Candidate grid ---------- */
+  .grid { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; background: var(--card); }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { padding: 10px 12px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--line); }
+  tr:last-child td { border-bottom: 0; }
+  th { font-size: 12px; font-weight: 600; color: var(--secondary); white-space: nowrap; }
+  td.name { min-width: 170px; }
+  td.name b { display: block; }
+  td.name span { color: var(--secondary); font-size: 12.5px; }
+  td .stack { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+  tr.picked td { background: color-mix(in srgb, var(--pick) 9%, transparent); }
+  tr.picked td.name b { color: var(--pick); }
+  tr { cursor: pointer; }
+
+  /* ---------- App icons ---------- */
+  .icons { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; }
+  .icon-card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; align-items: center; gap: 10px; cursor: pointer; }
+  .icon-card.picked { outline: 2px solid var(--pick); outline-offset: -1px; }
+  .icon-card .sizes { display: flex; align-items: flex-end; gap: 12px; }
+  .appicon { position: relative; display: grid; place-items: center; border-radius: 22.5%; box-shadow: 0 1px 2px rgba(0,0,0,.25), inset 0 0 0 .5px rgba(255,255,255,.25); color: #fff; overflow: hidden; }
+  .appicon::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(255,255,255,.22), rgba(255,255,255,0) 45%); }
+  .appicon svg { width: 62%; height: 62%; }
+  .appicon.s128 { width: 128px; height: 128px; }
+  .appicon.s32 { width: 32px; height: 32px; }
+  .appicon.s16 { width: 16px; height: 16px; border-radius: 4px; }
+  .bg-indigo   { background: linear-gradient(160deg, #5b74ff, #2b2f8f); }
+  .bg-graphite { background: linear-gradient(160deg, #4a4a52, #1c1c20); }
+  .bg-teal     { background: linear-gradient(160deg, #2bc4b4, #0e6c74); }
+  .bg-light    { background: linear-gradient(160deg, #ffffff, #dcdce2); color: #1d1d1f; }
+  .icon-card .label { font-size: 12.5px; color: var(--secondary); }
+
+  /* ---------- Switcher ---------- */
+  #switcher { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); display: flex; align-items: center; gap: 4px; background: #111; color: #fff; border-radius: 99px; padding: 6px; box-shadow: 0 8px 28px rgba(0,0,0,.35); font-size: 13px; z-index: 10; max-width: calc(100vw - 32px); }
+  #switcher button { font: inherit; color: #fff; background: rgba(255,255,255,.12); border: 0; width: 32px; height: 32px; border-radius: 99px; cursor: pointer; flex: none; }
+  #switcher button:hover { background: rgba(255,255,255,.24); }
+  #switcher .lbl { padding: 0 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  @media (max-width: 640px) { :root { --z: 1.5; } }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <!-- A: gauge with needle (the placeholder from the dropdown mockup) -->
+    <symbol id="g-A" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M2.42 13.39 A7 7 0 1 1 15.58 13.39"/>
+      <path d="M9 11 L12.3 7.1"/>
+      <circle cx="9" cy="11" r="1.5" fill="currentColor" stroke="none"/>
+    </symbol>
+    <!-- B: bar with a pace tick -->
+    <symbol id="g-B" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="1.7" y="6.2" width="14.6" height="5.6" rx="2.8"/>
+      <rect x="3.2" y="7.7" width="6.6" height="2.6" rx="1.3" fill="currentColor" stroke="none"/>
+      <path d="M12.6 2.6 V15.4" stroke-width="1.7"/>
+    </symbol>
+    <!-- C: scale with a pointer on one tick -->
+    <symbol id="g-C" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M1.6 14.2 H16.4"/>
+      <path d="M3.2 14.2 V11.6 M6.4 14.2 V11.6 M9.6 14.2 V11.6 M15.4 14.2 V11.6" stroke-width="1.2"/>
+      <path d="M12.6 14.2 V6.6" stroke-width="1.7"/>
+      <path d="M10.1 2.4 H15.1 L12.6 5.4 Z" fill="currentColor" stroke="none"/>
+    </symbol>
+    <!-- D: monogram P whose stem doubles as the tick -->
+    <symbol id="g-D" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M5.6 16.4 V1.6"/>
+      <path d="M5.6 2.8 H10.2 A3.8 3.8 0 0 1 10.2 10.4 H5.6"/>
+    </symbol>
+    <!-- E: dial with a tick crossing the ring -->
+    <symbol id="g-E" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="9" cy="9.6" r="6.6"/>
+      <path d="M11.8 8 L16.6 5.2" stroke-width="1.8"/>
+    </symbol>
+
+    <!-- monochrome warning sign, drawn like the system's exclamationmark.triangle -->
+    <symbol id="warn" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" stroke-linecap="round">
+      <path d="M9 2.4 L16.4 15.2 H1.6 Z"/>
+      <path d="M9 7 V10.8"/>
+      <circle cx="9" cy="13" r=".9" fill="currentColor" stroke="none"/>
+    </symbol>
+    <!-- neighbours in the menu bar, for scale -->
+    <symbol id="wifi" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+      <path d="M2.2 7.4 A10 10 0 0 1 15.8 7.4"/><path d="M4.7 10 A6.4 6.4 0 0 1 13.3 10"/><path d="M7.2 12.6 A2.8 2.8 0 0 1 10.8 12.6"/>
+      <circle cx="9" cy="14.6" r="1" fill="currentColor" stroke="none"/>
+    </symbol>
+    <symbol id="battery" viewBox="0 0 26 18" fill="none" stroke="currentColor" stroke-width="1.1">
+      <rect x="1.5" y="4.5" width="20" height="9.5" rx="2.8" opacity=".55"/>
+      <rect x="3" y="6" width="13" height="6.5" rx="1.6" fill="currentColor" stroke="none"/>
+      <path d="M23.4 7.6 V10.9" stroke-width="1.6" stroke-linecap="round" opacity=".55"/>
+    </symbol>
+    <symbol id="cc" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.3">
+      <rect x="2" y="3.2" width="14" height="5" rx="2.5"/><circle cx="5.2" cy="5.7" r="1.4" fill="currentColor" stroke="none"/>
+      <rect x="2" y="9.8" width="14" height="5" rx="2.5"/><circle cx="12.8" cy="12.3" r="1.4" fill="currentColor" stroke="none"/>
+    </symbol>
+  </defs>
+</svg>
+
+<main>
+  <span class="tag">PROTOTYPE · THROW AWAY</span>
+  <h1>Pacemark: menu bar glyph and app icon</h1>
+  <p class="lead">Five candidate glyphs. Each one sits left of the session limit's utilization and must stay legible in every state the menu bar item has. Click a row, or use the bar at the bottom or the ← → keys, to highlight a candidate everywhere.</p>
+
+  <div class="controls">
+    <span>Zoom <span class="seg" id="zoom"><button data-z="1">1×</button><button data-z="2">2×</button><button data-z="3">3×</button></span></span>
+    <span>Page <span class="seg" id="theme"><button data-t="">Auto</button><button data-t="light">Light</button><button data-t="dark">Dark</button></span></span>
+  </div>
+  <p class="note">1× is the real size on a Retina display. The menu bar strips are always shown both light and dark, whatever the page theme.</p>
+
+  <h2>In context</h2>
+  <p class="note">The highlighted candidate between its neighbours: Wi-Fi, battery, Control Center, clock.</p>
+  <div class="context" id="context"></div>
+
+  <h2>Every state</h2>
+  <p class="note">Normal · stale (percentage dimmed, values over 10 min old) · near the limit (percentage red from 90 %) · persistent error (warning sign instead of the percentage) · icon only (loading, or no values yet).</p>
+  <div class="grid"><table id="table"></table></div>
+
+  <h2>App icon</h2>
+  <p class="note">The same motif on the app icon (Finder, Dock, releases) at 128, 32 and 16 px. The colour is only a placeholder: switch it here.</p>
+  <div class="controls"><span>Background <span class="seg" id="bg"><button data-bg="indigo">Indigo</button><button data-bg="graphite">Graphite</button><button data-bg="teal">Teal</button><button data-bg="light">Light</button></span></span></div>
+  <div class="icons" id="icons"></div>
+</main>
+
+<div id="switcher"><button id="prev" aria-label="Previous candidate">←</button><span class="lbl" id="lbl"></span><button id="next" aria-label="Next candidate">→</button></div>
+
+<script>
+  const CANDIDATES = [
+    { key: "A", name: "Gauge",        note: "Needle on a dial. The placeholder from the dropdown mockup." },
+    { key: "B", name: "Bar with tick", note: "A bar plus the pace marker crossing it. Literal, but close to the battery." },
+    { key: "C", name: "Scale pointer", note: "A pointer on one tick of a scale: the pace mark itself." },
+    { key: "D", name: "Monogram P",   note: "The letter P; its long stem is the tick." },
+    { key: "E", name: "Dial tick",    note: "A ring with one tick crossing it, like a mark on a watch face." },
+  ];
+  const STATES = [
+    { label: "Normal",       html: '<span class="pct">71%</span>' },
+    { label: "Stale",        html: '<span class="pct dim">71%</span>' },
+    { label: "Near limit",   html: '<span class="pct red">92%</span>' },
+    { label: "Error",        html: '<svg viewBox="0 0 18 18"><use href="#warn"/></svg>' },
+    { label: "Icon only",    html: '' },
+  ];
+  const glyph = k => `<svg viewBox="0 0 18 18"><use href="#g-${k}"/></svg>`;
+  const item = (k, state, ours) => `<span class="si${ours ? " ours" : ""}">${glyph(k)}${state}</span>`;
+  const strip = (theme, k, state) => `<span class="mb ${theme}">${item(k, state)}</span>`;
+
+  let current = new URLSearchParams(location.search).get("variant") || "A";
+  if (!CANDIDATES.some(c => c.key === current)) current = "A";
+  let bg = "indigo";
+
+  function renderContext() {
+    const neighbours = '<span class="si"><svg viewBox="0 0 18 18"><use href="#wifi"/></svg></span>'
+      + '<span class="si"><svg viewBox="0 0 26 18" style="width:23px"><use href="#battery"/></svg></span>'
+      + '<span class="si"><svg viewBox="0 0 18 18"><use href="#cc"/></svg></span>'
+      + '<span class="clock">Sat 3 Oct 14:32</span>';
+    const bar = theme => `<div class="mb wide ${theme}">${item(current, STATES[0].html, false)}${neighbours}</div>`;
+    document.getElementById("context").innerHTML = bar("light") + bar("dark");
+  }
+  function renderTable() {
+    const head = "<tr><th>Candidate</th>" + STATES.map(s => `<th>${s.label}</th>`).join("") + "</tr>";
+    const rows = CANDIDATES.map(c => `<tr data-k="${c.key}" class="${c.key === current ? "picked" : ""}">`
+      + `<td class="name"><b>${c.key} · ${c.name}</b><span>${c.note}</span></td>`
+      + STATES.map(s => `<td><div class="stack">${strip("light", c.key, s.html)}${strip("dark", c.key, s.html)}</div></td>`).join("")
+      + "</tr>").join("");
+    const t = document.getElementById("table");
+    t.innerHTML = head + rows;
+    t.querySelectorAll("tr[data-k]").forEach(r => r.onclick = () => pick(r.dataset.k));
+  }
+  function renderIcons() {
+    const el = document.getElementById("icons");
+    el.innerHTML = CANDIDATES.map(c => `<div class="icon-card${c.key === current ? " picked" : ""}" data-k="${c.key}">`
+      + `<div class="appicon s128 bg-${bg}">${glyph(c.key)}</div>`
+      + `<div class="sizes">${["s32", "s16"].map(s => `<div class="appicon ${s} bg-${bg}">${glyph(c.key)}</div>`).join("")}</div>`
+      + `<div class="label">${c.key} · ${c.name}</div></div>`).join("");
+    el.querySelectorAll(".icon-card").forEach(r => r.onclick = () => pick(r.dataset.k));
+  }
+  function renderSwitcher() {
+    const c = CANDIDATES.find(c => c.key === current);
+    document.getElementById("lbl").textContent = `${c.key} (${c.name})`;
+  }
+  function render() { renderContext(); renderTable(); renderIcons(); renderSwitcher(); }
+  function pick(k) {
+    current = k;
+    const u = new URL(location.href); u.searchParams.set("variant", k); history.replaceState(null, "", u);
+    render();
+  }
+  function step(d) {
+    const i = CANDIDATES.findIndex(c => c.key === current);
+    pick(CANDIDATES[(i + d + CANDIDATES.length) % CANDIDATES.length].key);
+  }
+  document.getElementById("prev").onclick = () => step(-1);
+  document.getElementById("next").onclick = () => step(1);
+  addEventListener("keydown", e => {
+    if (e.target.closest("input, textarea, [contenteditable]")) return;
+    if (e.key === "ArrowLeft") step(-1);
+    if (e.key === "ArrowRight") step(1);
+  });
+
+  function segment(id, attr, initial, apply) {
+    const seg = document.getElementById(id);
+    const set = v => { seg.querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset[attr] === v)); apply(v); };
+    seg.querySelectorAll("button").forEach(b => b.onclick = () => set(b.dataset[attr]));
+    set(initial);
+  }
+  segment("zoom", "z", "2", v => document.documentElement.style.setProperty("--z", v));
+  segment("theme", "t", "", v => v ? document.documentElement.dataset.theme = v : delete document.documentElement.dataset.theme);
+  segment("bg", "bg", "indigo", v => { bg = v; renderIcons(); });
+
+  render();
+</script>
+</body>
+</html>
