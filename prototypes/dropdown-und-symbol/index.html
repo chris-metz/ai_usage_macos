@@ -1,0 +1,650 @@
+<title>AI Usage Menüleisten-Mockup</title>
+<!--
+  PROTOTYP, WEGWERFEN. Kein Produktionscode.
+  Beantwortet das Ticket „Wie sehen Dropdown und Menüleisten-Symbol aus?“
+  (https://github.com/chris-metz/ai_usage_macos/issues/4).
+
+  Vier Dropdown-Varianten (?dropdown=A–D) und fünf Symbol-Varianten (?symbol=1–5)
+  auf einem nachgebauten macOS-Desktop, umschaltbar über die Leiste unten.
+  Absichtlich HTML statt SwiftUI: Der Tech-Stack ist noch nicht entschieden.
+  Beispieldaten, keine echte Datenquelle. Die Zeit ist auf den Moment des Ladens eingefroren.
+  Start: Datei im Browser öffnen.
+-->
+<style>
+  /* Layout: nachgebauter macOS-Desktop, Dropdown unter dem Menüleisten-Symbol; unter 760px alles untereinander. */
+  :root {
+    --wall: linear-gradient(135deg, #a9c1ff 0%, #e9d3f7 45%, #fbe6d4 100%);
+    --mb-bg: rgba(255,255,255,.28); --mb-fg: #111;
+    --panel: rgba(248,248,250,.80); --panel-solid: #f2f2f5; --panel-border: rgba(0,0,0,.14);
+    --text: #1d1d1f; --secondary: rgba(60,60,67,.68); --track: rgba(120,120,128,.20);
+    --sep: rgba(0,0,0,.10); --hover: rgba(0,0,0,.06); --ghost: rgba(60,60,67,.22);
+    --accent: #007aff; --orange: #f08a00; --red: #ff3b30; --green: #1f9d45;
+    --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, "Segoe UI", sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --wall: linear-gradient(135deg, #0e1838 0%, #2a1642 55%, #3d1c2b 100%);
+      --mb-bg: rgba(0,0,0,.22); --mb-fg: #fff;
+      --panel: rgba(38,38,42,.74); --panel-solid: #2b2b30; --panel-border: rgba(255,255,255,.16);
+      --text: #f5f5f7; --secondary: rgba(235,235,245,.60); --track: rgba(120,120,128,.34);
+      --sep: rgba(255,255,255,.12); --hover: rgba(255,255,255,.08); --ghost: rgba(235,235,245,.22);
+      --accent: #0a84ff; --orange: #ff9f0a; --red: #ff453a; --green: #30d158;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --wall: linear-gradient(135deg, #0e1838 0%, #2a1642 55%, #3d1c2b 100%);
+    --mb-bg: rgba(0,0,0,.22); --mb-fg: #fff;
+    --panel: rgba(38,38,42,.74); --panel-solid: #2b2b30; --panel-border: rgba(255,255,255,.16);
+    --text: #f5f5f7; --secondary: rgba(235,235,245,.60); --track: rgba(120,120,128,.34);
+    --sep: rgba(255,255,255,.12); --hover: rgba(255,255,255,.08); --ghost: rgba(235,235,245,.22);
+    --accent: #0a84ff; --orange: #ff9f0a; --red: #ff453a; --green: #30d158;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; background: var(--wall); color: var(--text);
+    font: 13px/1.35 var(--font);
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+    user-select: none;
+  }
+  button:focus-visible, [data-action]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  #desktop { position: fixed; inset: 0; background: var(--wall); }
+
+  /* ---------- Menüleiste ---------- */
+  #menubar {
+    position: absolute; top: 0; left: 0; right: 0; height: 26px;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 10px; color: var(--mb-fg); background: var(--mb-bg);
+    backdrop-filter: blur(20px) saturate(1.4); -webkit-backdrop-filter: blur(20px) saturate(1.4);
+    font-size: 13.5px; font-weight: 500;
+  }
+  #menubar .left, #menubar .right { display: flex; align-items: center; gap: 4px; height: 100%; }
+  #menubar .mi { padding: 0 8px; height: 22px; display: flex; align-items: center; border-radius: 5px; }
+  #menubar .mi.bold { font-weight: 700; }
+  #menubar .apple { font-size: 15px; padding: 0 10px 0 6px; }
+  #menubar .clock { font-variant-numeric: tabular-nums; }
+  .status-item { cursor: pointer; }
+  .status-item.active { background: color-mix(in srgb, var(--mb-fg) 18%, transparent); }
+  .sym { display: inline-flex; align-items: center; gap: 4px; height: 22px; color: currentColor; }
+  .sym svg { display: block; overflow: visible; }
+  .sym-text { font-size: 13px; font-weight: 500; font-variant-numeric: tabular-nums; letter-spacing: -.1px; }
+
+  /* ---------- Dropdown-Grundlagen ---------- */
+  .dd {
+    position: absolute; color: var(--text);
+    background: var(--panel); border-radius: 14px;
+    backdrop-filter: blur(30px) saturate(1.7); -webkit-backdrop-filter: blur(30px) saturate(1.7);
+    box-shadow: 0 0 0 .5px var(--panel-border), 0 14px 44px rgba(0,0,0,.28);
+  }
+  .row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .secondary { color: var(--secondary); }
+  .small { font-size: 11px; }
+  .st.ahead { color: var(--orange); }
+  .st.behind { color: var(--green); }
+  .st.muted { color: var(--secondary); }
+  .sep { height: 1px; background: var(--sep); margin: 10px 0; }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; padding: 0; }
+  .icon-btn { width: 26px; height: 24px; border-radius: 6px; display: inline-grid; place-items: center; color: var(--secondary); }
+  .icon-btn:hover, .text-btn:hover { background: var(--hover); color: var(--text); }
+  .text-btn { padding: 3px 8px; border-radius: 6px; color: var(--secondary); }
+  .spin svg { animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Balken mit Pace-Strich (A) */
+  .bar { position: relative; margin: 6px 0 5px; }
+  .bar .clip { position: absolute; inset: 0; border-radius: 99px; overflow: hidden; background: var(--track); }
+  .bar .fill { position: absolute; top: 0; bottom: 0; left: 0; border-radius: 99px; }
+  .pace-line {
+    position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px;
+    background: var(--text); border-radius: 1px; box-shadow: 0 0 0 1.5px var(--panel-solid);
+  }
+
+  /* ---------- Variante A: Liste mit Tab-Leiste ---------- */
+  .dd-a { width: 300px; padding: 12px 14px 8px; }
+  .seg { display: flex; background: var(--track); border-radius: 8px; padding: 2px; margin-bottom: 12px; }
+  .seg-btn { flex: 1; display: flex; align-items: center; justify-content: center; gap: 5px; height: 24px; border-radius: 6px; font-weight: 500; color: var(--secondary); }
+  .seg-btn.on { background: var(--panel-solid); color: var(--text); box-shadow: 0 1px 2px rgba(0,0,0,.15); }
+  .a-limit { margin-bottom: 12px; }
+  .a-name { font-weight: 600; }
+  .a-pct { font-weight: 600; font-variant-numeric: tabular-nums; }
+  .a-limit .sub { font-size: 11.5px; color: var(--secondary); }
+  .dd-a .sep { margin: 2px -14px 6px; }
+  .foot { align-items: center; font-size: 11.5px; }
+  .foot .btns { display: flex; align-items: center; gap: 2px; }
+
+  /* ---------- Variante B: natives Menü ---------- */
+  .dd-b { width: 268px; padding: 5px; border-radius: 11px; }
+  .menu-header { padding: 4px 10px 2px; font-size: 11px; font-weight: 600; color: var(--secondary); }
+  .menu-custom { padding: 5px 10px 6px; }
+  .menu-custom .b-pct { font-variant-numeric: tabular-nums; color: var(--secondary); }
+  .b-bar { position: relative; height: 4px; margin: 8px 0 4px; }
+  .b-bar .clip { position: absolute; inset: 0; border-radius: 2px; overflow: hidden; background: var(--track); }
+  .b-bar .fill { position: absolute; top: 0; bottom: 0; left: 0; }
+  .pace-tri { position: absolute; top: -7px; width: 0; height: 0; transform: translateX(-50%);
+    border-left: 4px solid transparent; border-right: 4px solid transparent; border-top: 5px solid var(--text); }
+  .pace-tick { position: absolute; top: 0; bottom: 0; width: 1px; margin-left: -.5px; background: var(--text); }
+  .b-sub { font-size: 11px; color: var(--secondary); }
+  .menu-sep { height: 1px; background: var(--sep); margin: 5px 10px; }
+  .menu-item { display: flex; justify-content: space-between; align-items: center; height: 24px; padding: 0 10px; border-radius: 6px; cursor: default; }
+  .menu-item[data-action]:hover { background: var(--accent); color: #fff; }
+  .menu-item[data-action]:hover .kbd { color: rgba(255,255,255,.8); }
+  .menu-item.disabled { color: var(--secondary); font-size: 12px; }
+  .kbd { color: var(--secondary); }
+
+  /* ---------- Variante C: Fokus aufs knappste Limit ---------- */
+  .dd-c { width: 340px; display: flex; overflow: hidden; }
+  .c-rail { width: 46px; padding: 10px 0; display: flex; flex-direction: column; align-items: center; gap: 6px;
+    background: color-mix(in srgb, var(--text) 5%, transparent); border-right: 1px solid var(--sep); }
+  .c-rail button { width: 32px; height: 32px; border-radius: 8px; display: grid; place-items: center; color: var(--secondary); }
+  .c-rail button.on { background: var(--accent); color: #fff; }
+  .c-main { flex: 1; padding: 14px 14px 8px; min-width: 0; }
+  .c-hero-top { display: flex; justify-content: space-between; align-items: center; }
+  .c-hero-name { font-weight: 600; }
+  .c-badge { font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 99px; background: color-mix(in srgb, currentColor 14%, transparent); }
+  .c-big { font-size: 38px; font-weight: 700; letter-spacing: -1px; line-height: 1.1; margin: 4px 0 2px; font-variant-numeric: tabular-nums; }
+  .c-big span { font-size: 20px; font-weight: 600; margin-left: 3px; color: var(--secondary); }
+  .gbar { position: relative; margin: 8px 0 4px; }
+  .gbar .clip { position: absolute; inset: 0; border-radius: 99px; overflow: hidden; background: var(--track); }
+  .gbar .seg1, .gbar .seg2, .gbar .ghost { position: absolute; top: 0; bottom: 0; }
+  .gbar .ghost { background: repeating-linear-gradient(135deg, var(--ghost) 0 2px, transparent 2px 5px); }
+  .gbar .pace-line { top: -4px; bottom: -4px; width: 1.5px; margin-left: -.75px; box-shadow: none; }
+  .pace-cap { position: relative; height: 14px; font-size: 10.5px; color: var(--secondary); }
+  .pace-cap span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
+  .c-sentence { font-size: 12px; color: var(--secondary); margin: 2px 0 12px; }
+  .c-sentence b { color: var(--text); font-weight: 600; }
+  .c-other { display: grid; grid-template-columns: 92px 1fr 40px; align-items: center; gap: 8px; padding: 6px 0; border-top: 1px solid var(--sep); }
+  .c-other .gbar { margin: 0; }
+  .c-other .pct { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+  .c-other .meta { grid-column: 1 / -1; display: flex; justify-content: space-between; font-size: 11px; color: var(--secondary); margin-top: -4px; }
+  .c-foot { display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--sep); padding-top: 6px; margin-top: 2px; }
+
+  /* ---------- Variante D: Drei Ringe ---------- */
+  .dd-d { width: 340px; padding: 12px 12px 10px; }
+  .d-tabs { display: flex; gap: 6px; margin-bottom: 10px; }
+  .d-tabs button { display: flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 99px; color: var(--secondary); font-weight: 500; }
+  .d-tabs button.on { background: var(--text); color: var(--panel-solid); }
+  .d-rings { display: flex; justify-content: space-around; gap: 6px; }
+  .d-card { flex: 1; display: flex; flex-direction: column; align-items: center; text-align: center; min-width: 0; }
+  .d-ring { position: relative; }
+  .d-ring .center { position: absolute; inset: 0; display: grid; place-items: center; font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .d-ring .center small { font-size: 11px; font-weight: 600; color: var(--secondary); margin-left: 1px; }
+  .d-name { font-weight: 600; margin-top: 6px; }
+  .d-st { font-size: 11.5px; font-weight: 500; margin-top: 1px; }
+  .d-reset { font-size: 11px; color: var(--secondary); margin-top: 2px; line-height: 1.25; }
+  .d-foot { display: flex; justify-content: center; align-items: center; gap: 6px; margin-top: 12px; padding-top: 8px; border-top: 1px solid var(--sep); font-size: 11.5px; color: var(--secondary); }
+  .d-foot button { color: var(--accent); }
+
+  /* ---------- Symbol-Vergleich ---------- */
+  #compare {
+    position: absolute; left: 24px; top: 60px; padding: 12px 14px; border-radius: 12px;
+    background: rgba(20,20,24,.55); color: #fff; backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    font-size: 11.5px; box-shadow: 0 8px 30px rgba(0,0,0,.25);
+  }
+  #compare h3 { margin: 0 0 8px; font-size: 12px; font-weight: 600; }
+  .strip { display: flex; gap: 2px; padding: 4px 6px; border-radius: 7px; margin-bottom: 6px; }
+  .strip.hell { background: rgba(255,255,255,.88); color: #111; }
+  .strip.dunkel { background: rgba(10,10,14,.9); color: #fff; }
+  .strip .cell { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 3px 8px; border-radius: 6px; cursor: pointer; min-width: 60px; }
+  .strip .cell.on { outline: 2px solid #ff2d95; outline-offset: -1px; }
+  .strip .cell .n { font-size: 10px; opacity: .55; }
+  #compare .note { opacity: .7; margin-top: 2px; }
+
+  /* ---------- Prototyp-Umschalter (nicht Teil des Designs) ---------- */
+  #switcher {
+    position: fixed; left: 50%; bottom: calc(14px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%);
+    background: #101014; color: #eee; border: 1.5px solid #ff2d95; border-radius: 14px;
+    padding: 8px 12px 7px; font: 12px/1.3 -apple-system, system-ui, sans-serif;
+    box-shadow: 0 10px 30px rgba(0,0,0,.45); z-index: 100; max-width: calc(100vw - 24px);
+  }
+  .sw-grid { display: grid; grid-template-columns: auto 1fr; gap: 5px 10px; align-items: center; }
+  .sw-k { color: #ff7ac0; font-weight: 600; text-align: right; }
+  .sw-cyc { display: flex; align-items: center; gap: 6px; }
+  .sw-cyc button { width: 22px; height: 20px; border-radius: 5px; background: #2a2a31; color: #fff; }
+  .sw-cyc button:hover { background: #3a3a44; }
+  .sw-cyc b { color: #fff; }
+  .chips { display: flex; flex-wrap: wrap; gap: 4px; }
+  .chip { padding: 2px 8px; border-radius: 99px; background: #24242b; color: #bbb; }
+  .chip:hover { color: #fff; }
+  .chip.on { background: #ff2d95; color: #fff; }
+  .sw-badge { position: absolute; top: -9px; left: 12px; background: #ff2d95; color: #fff; font-size: 9.5px; font-weight: 700; letter-spacing: .8px; padding: 1px 6px; border-radius: 4px; }
+  .sw-hint { margin-top: 6px; color: #8a8a95; font-size: 11px; }
+
+  #toast {
+    position: fixed; left: 50%; top: 46%; transform: translate(-50%, -50%);
+    background: rgba(16,16,20,.9); color: #fff; padding: 10px 16px; border-radius: 10px;
+    font-size: 13px; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 200;
+  }
+  #toast.show { opacity: 1; }
+  @media (prefers-reduced-motion: reduce) { .spin svg { animation: none; opacity: .5; } }
+
+  /* Schmale Fenster und Handy: Menüleiste, Dropdown, Symbol-Vergleich und Umschalter untereinander */
+  @media (max-width: 760px) {
+    html, body { height: auto; }
+    body { overflow: auto; }
+    #desktop { position: relative; inset: auto; background: none; display: flex; flex-direction: column; gap: 16px; padding: 0 16px 16px; }
+    #menubar { position: relative; margin: 0 -16px; padding: 0 16px; }
+    #menubar .left, #menubar .opt { display: none; }
+    #menubar .right { width: 100%; justify-content: space-between; }
+    #dropdown-host { order: 1; display: flex; justify-content: center; }
+    #compare { order: 2; position: static; }
+    .dd { position: relative; max-width: 100%; }
+    .strip { flex-wrap: wrap; }
+    .strip .cell { min-width: 0; padding: 3px 6px; }
+    #switcher { position: relative; left: auto; bottom: auto; transform: none; margin: 8px 16px 16px; max-width: none; }
+    .sw-cyc { flex-wrap: wrap; }
+    .sw-hint { display: none; }
+  }
+</style>
+<div id="desktop">
+  <div id="menubar">
+    <div class="left">
+      <span class="mi bold">Finder</span><span class="mi">Ablage</span><span class="mi">Bearbeiten</span>
+      <span class="mi">Darstellung</span><span class="mi">Gehe zu</span><span class="mi">Fenster</span><span class="mi">Hilfe</span>
+    </div>
+    <div class="right" id="mb-right"></div>
+  </div>
+  <div id="compare"></div>
+  <div id="dropdown-host"></div>
+</div>
+<div id="switcher"></div>
+<div id="toast"></div>
+
+<script>
+// ---------- Beispieldaten ----------
+const MIN = 60e3, H = 60 * MIN, D = 24 * H;
+const NOW = Date.now(); // eingefroren: Pace und Reset beziehen sich auf den Moment des Ladens
+
+const SZENARIEN = {
+  gemischt: { label: 'Gemischt', claude: [[71, 1*H + 52*MIN], [34, 4*D + 6*H], [58, 4*D + 6*H]] },
+  reserve:  { label: 'Viel Reserve', claude: [[22, 3*H + 10*MIN], [18, 5*D + 2*H], [6, 5*D + 2*H]] },
+  knapp:    { label: 'Knapp', claude: [[94, 48*MIN], [81, 1*D + 3*H], [97, 1*D + 3*H]] },
+  frisch:   { label: 'Session noch nicht gestartet', claude: [[0, null], [1, 6*D + 20*H], [0, 6*D + 20*H]] },
+};
+const CLAUDE_LIMITS = [
+  { key: 'session', name: 'Session-Limit', kurz: 'Session', fenster: 5*H },
+  { key: 'woche',   name: 'Wochenlimit',   kurz: 'Woche',   fenster: 7*D },
+  { key: 'fable',   name: 'Fable-Limit',   kurz: 'Fable',   fenster: 7*D },
+];
+const CODEX_LIMITS = [ // nur Vorschau für die Tab-Frage, Codex ist nicht Teil von v1
+  { key: 'session', name: 'Session-Limit', kurz: 'Session', fenster: 5*H, a: 12, resetIn: 4*H + 5*MIN },
+  { key: 'woche',   name: 'Wochenlimit',   kurz: 'Woche',   fenster: 7*D, a: 47, resetIn: 2*D + 9*H },
+];
+
+function limit(def, a, resetIn) {
+  const pace = resetIn == null ? null : (def.fenster - resetIn) / def.fenster * 100;
+  return { ...def, a, resetIn, resetAt: resetIn == null ? null : NOW + resetIn, pace, diff: pace == null ? null : a - pace };
+}
+function claudeLimits() {
+  return CLAUDE_LIMITS.map((def, i) => {
+    let [a, resetIn] = SZENARIEN[state.daten].claude[i];
+    if (i === 0 && resetIn != null) a = Math.min(100, a + state.nudge);
+    return limit(def, a, resetIn);
+  });
+}
+const codexLimits = () => CODEX_LIMITS.map(d => limit(d, d.a, d.resetIn));
+
+// ---------- Zustand ----------
+const P = new URLSearchParams(location.search);
+const DD = { A: 'Liste mit Tab-Leiste', B: 'Natives Menü', C: 'Fokus aufs knappste Limit', D: 'Drei Ringe' };
+const SYM = { 1: 'Nur Icon', 2: 'Icon + Session-%', 3: 'Mini-Balken mit Pace', 4: 'Drei Mini-Balken', 5: 'Ring mit Pace' };
+const state = {
+  dd: DD[P.get('dropdown')] ? P.get('dropdown') : 'A',
+  sym: SYM[P.get('symbol')] ? +P.get('symbol') : 2,
+  reset: P.get('reset') || 'countdown',
+  tabs: P.get('tabs') || 'aus',
+  daten: SZENARIEN[P.get('daten')] ? P.get('daten') : 'gemischt',
+  open: true, provider: 'claude', refreshing: false, lastUpdated: NOW - MIN, nudge: 0,
+};
+// Ohne Wahl folgt die Ansicht dem System bzw. dem Betrachter; ?theme=light|dark erzwingt eine
+if (['light', 'dark'].includes(P.get('theme'))) document.documentElement.dataset.theme = P.get('theme');
+const DARK_MQ = matchMedia('(prefers-color-scheme: dark)');
+function effectiveTheme() {
+  const t = document.documentElement.dataset.theme;
+  return t === 'light' || t === 'dark' ? t : DARK_MQ.matches ? 'dark' : 'light';
+}
+DARK_MQ.addEventListener('change', () => render());
+const NARROW_MQ = matchMedia('(max-width: 760px)');
+function syncURL() {
+  const p = new URLSearchParams({ dropdown: state.dd, symbol: state.sym, reset: state.reset, tabs: state.tabs, daten: state.daten });
+  try { history.replaceState(null, '', '?' + p); } catch (e) {}
+}
+
+// ---------- Formatierung ----------
+const WT = ['So.', 'Mo.', 'Di.', 'Mi.', 'Do.', 'Fr.', 'Sa.'];
+const pct = a => `${Math.round(a)} %`;
+const hhmm = t => new Date(t).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+function dayOffset(t) {
+  const a = new Date(NOW); a.setHours(0, 0, 0, 0);
+  const b = new Date(t); b.setHours(0, 0, 0, 0);
+  return Math.round((b - a) / D);
+}
+function uhr(t) {
+  const off = dayOffset(t);
+  if (off === 0) return `${hhmm(t)} Uhr`;
+  if (off === 1) return `morgen ${hhmm(t)}`;
+  return `${WT[new Date(t).getDay()]} ${hhmm(t)}`;
+}
+function countdown(ms) {
+  const m = Math.round(ms / MIN);
+  if (m < 60) return `${m} Min.`;
+  const h = Math.floor(m / 60), mm = m % 60;
+  if (h < 24) return `${h} Std. ${mm} Min.`;
+  return `${Math.floor(h / 24)} T. ${h % 24} Std.`;
+}
+function resetWhen(l) {
+  if (l.resetAt == null) return 'beginnt mit der ersten Nachricht';
+  const c = `in ${countdown(l.resetIn)}`, u = (dayOffset(l.resetAt) === 0 ? 'um ' : '') + uhr(l.resetAt);
+  return state.reset === 'countdown' ? c : state.reset === 'uhrzeit' ? u : `${c} · ${uhr(l.resetAt)}`;
+}
+const resetText = l => l.resetAt == null ? 'Fenster ' + resetWhen(l) : 'Reset ' + resetWhen(l);
+function stText(l) {
+  if (l.pace == null) return 'noch nicht gestartet';
+  const d = Math.round(Math.abs(l.diff));
+  return l.diff >= 0 ? `${d} % voraus` : `${d} % hinterher`;
+}
+const stCls = l => l.pace == null ? 'muted' : l.diff >= 0 ? 'ahead' : 'behind';
+function fillColor(l) {
+  if (l.a >= 90) return 'var(--red)';
+  if (l.pace != null && l.diff > 0) return 'var(--orange)';
+  return 'var(--accent)';
+}
+function updText() {
+  const m = Math.floor((Date.now() - state.lastUpdated) / MIN);
+  return m < 1 ? 'Aktualisiert: gerade eben' : `Aktualisiert vor ${m} Min.`;
+}
+const tip = l => `Auslastung ${pct(l.a)}` + (l.pace == null ? '' : ` · Pace ${pct(l.pace)}`);
+
+// ---------- Icons ----------
+const ICON_REFRESH = `<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9"/><path d="M13.7 1.9v3.4h-3.4"/></svg>`;
+const ICON_POWER = `<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M8 1.8v6"/><path d="M4.6 4.1a5.3 5.3 0 1 0 6.8 0"/></svg>`;
+const ICON_CLAUDE = `<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M8 2v12M2 8h12M3.8 3.8l8.4 8.4M12.2 3.8l-8.4 8.4"/></svg>`;
+const ICON_CODEX = `<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M8 1.8l5.4 3.1v6.2L8 14.2l-5.4-3.1V4.9z"/></svg>`;
+const GAUGE = `<svg width="17" height="17" viewBox="0 0 17 17" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M3.9 13.6A6.5 6.5 0 1 1 13.1 13.6"/><path d="M8.5 9.3l3-3.6"/><circle cx="8.5" cy="9.3" r="1.2" fill="currentColor" stroke="none"/></svg>`;
+
+// ---------- Menüleisten-Symbole ----------
+let uid = 0;
+function symMiniBar(l) {
+  const w = 30, h = 11, pad = 2, id = 'm' + (++uid);
+  const iw = w - 2 * pad, px = l.pace == null ? null : pad + iw * l.pace / 100;
+  const m = px == null ? '' : `mask="url(#${id})"`;
+  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+    ${px == null ? '' : `<mask id="${id}" maskUnits="userSpaceOnUse"><rect x="-2" y="-4" width="${w + 4}" height="${h + 8}" fill="#fff"/><rect x="${px - 1.7}" y="-4" width="3.4" height="${h + 8}" fill="#000"/></mask>`}
+    <rect x=".6" y=".6" width="${w - 1.2}" height="${h - 1.2}" rx="3" fill="none" stroke="currentColor" stroke-opacity=".55" stroke-width="1.2" ${m}/>
+    <rect x="${pad}" y="${pad}" width="${iw * l.a / 100}" height="${h - 2 * pad}" rx="1.4" fill="currentColor" ${m}/>
+    ${px == null ? '' : `<rect x="${px - .65}" y="-2" width="1.3" height="${h + 4}" rx=".65" fill="currentColor"/>`}
+  </svg>`;
+}
+function symThreeBars(ls) {
+  const w = 24, bh = 3.4, gap = 1.9, total = 3 * bh + 2 * gap;
+  const parts = ls.map((l, i) => {
+    const y = i * (bh + gap), id = 'm' + (++uid), px = l.pace == null ? null : w * l.pace / 100;
+    const m = px == null ? '' : `mask="url(#${id})"`;
+    return `${px == null ? '' : `<mask id="${id}" maskUnits="userSpaceOnUse"><rect x="-1" y="${y - 1}" width="${w + 2}" height="${bh + 2}" fill="#fff"/><rect x="${px - 1.5}" y="${y - 1}" width="3" height="${bh + 2}" fill="#000"/></mask>`}
+      <rect x="0" y="${y}" width="${w}" height="${bh}" rx="1.2" fill="currentColor" fill-opacity=".3"/>
+      <rect x="0" y="${y}" width="${w * l.a / 100}" height="${bh}" rx="1.2" fill="currentColor" ${m}/>
+      ${px == null ? '' : `<rect x="${px - .5}" y="${y}" width="1" height="${bh}" fill="currentColor"/>`}`;
+  }).join('');
+  return `<svg width="${w}" height="${total}" viewBox="0 0 ${w} ${total}">${parts}</svg>`;
+}
+function symRing(l) {
+  const s = 18, c = 9, r = 6.3, sw = 2.4, circ = 2 * Math.PI * r, id = 'm' + (++uid);
+  let tick = '', mask = '', m = '';
+  if (l.pace != null) {
+    const ang = (l.pace / 100 * 360 - 90) * Math.PI / 180, r1 = r - 2.6, r2 = r + 2.6;
+    const xy = rr => `${(c + rr * Math.cos(ang)).toFixed(2)}`;
+    const yy = rr => `${(c + rr * Math.sin(ang)).toFixed(2)}`;
+    const ln = (st, col) => `<line x1="${xy(r1)}" y1="${yy(r1)}" x2="${xy(r2)}" y2="${yy(r2)}" stroke="${col}" stroke-width="${st}" stroke-linecap="round"/>`;
+    mask = `<mask id="${id}" maskUnits="userSpaceOnUse"><rect x="-2" y="-2" width="${s + 4}" height="${s + 4}" fill="#fff"/>${ln(3.6, '#000')}</mask>`;
+    m = `mask="url(#${id})"`;
+    tick = ln(1.3, 'currentColor');
+  }
+  return `<svg width="${s}" height="${s}" viewBox="0 0 ${s} ${s}">${mask}
+    <g ${m}><circle cx="${c}" cy="${c}" r="${r}" fill="none" stroke="currentColor" stroke-opacity=".3" stroke-width="${sw}"/>
+    <circle cx="${c}" cy="${c}" r="${r}" fill="none" stroke="currentColor" stroke-width="${sw}" stroke-dasharray="${circ * l.a / 100} ${circ}" transform="rotate(-90 ${c} ${c})"/></g>
+    ${tick}</svg>`;
+}
+function symbolHTML(n, ls) {
+  const s = ls[0];
+  switch (n) {
+    case 1: return `<span class="sym">${GAUGE}</span>`;
+    case 2: return `<span class="sym">${GAUGE}<span class="sym-text">${pct(s.a)}</span></span>`;
+    case 3: return `<span class="sym">${symMiniBar(s)}</span>`;
+    case 4: return `<span class="sym">${symThreeBars(ls)}</span>`;
+    case 5: return `<span class="sym">${symRing(s)}</span>`;
+  }
+}
+
+// ---------- Balken ----------
+function barLine(l, h) {
+  return `<div class="bar" style="height:${h}px" title="${tip(l)}">
+    <div class="clip"><div class="fill" style="width:${l.a}%;background:${fillColor(l)}"></div></div>
+    ${l.pace == null ? '' : `<div class="pace-line" style="left:${l.pace}%"></div>`}
+  </div>`;
+}
+function barTri(l) {
+  return `<div class="b-bar" title="${tip(l)}">
+    <div class="clip"><div class="fill" style="width:${l.a}%;background:${fillColor(l)}"></div>
+    ${l.pace == null ? '' : `<div class="pace-tick" style="left:${l.pace}%"></div>`}</div>
+    ${l.pace == null ? '' : `<div class="pace-tri" style="left:${l.pace}%"></div>`}
+  </div>`;
+}
+// Pace als schraffierter Schatten: bis zur Pace normal gefärbt, Überhang über die Pace orange, Reserve schraffiert
+function barGhost(l, h) {
+  const base = l.a >= 90 ? 'var(--red)' : 'var(--accent)';
+  if (l.pace == null) return `<div class="gbar" style="height:${h}px" title="${tip(l)}"><div class="clip"><div class="seg1" style="left:0;width:${l.a}%;background:${base}"></div></div></div>`;
+  const lo = Math.min(l.a, l.pace);
+  return `<div class="gbar" style="height:${h}px" title="${tip(l)}"><div class="clip">
+      ${l.pace > l.a ? `<div class="ghost" style="left:${l.a}%;width:${l.pace - l.a}%"></div>` : ''}
+      <div class="seg1" style="left:0;width:${lo}%;background:${base}"></div>
+      ${l.a > l.pace ? `<div class="seg2" style="left:${l.pace}%;width:${l.a - l.pace}%;background:${l.a >= 90 ? 'var(--red)' : 'var(--orange)'}"></div>` : ''}
+    </div><div class="pace-line" style="left:${l.pace}%"></div></div>`;
+}
+function ringBig(l, size) {
+  const c = size / 2, sw = 7, r = c - sw / 2 - 4, circ = 2 * Math.PI * r;
+  let tick = '';
+  if (l.pace != null) {
+    const ang = (l.pace / 100 * 360 - 90) * Math.PI / 180, r1 = r - sw / 2 - 2.5, r2 = r + sw / 2 + 2.5;
+    const p = rr => `${(c + rr * Math.cos(ang)).toFixed(2)}`, q = rr => `${(c + rr * Math.sin(ang)).toFixed(2)}`;
+    tick = `<line x1="${p(r1)}" y1="${q(r1)}" x2="${p(r2)}" y2="${q(r2)}" style="stroke:var(--panel-solid)" stroke-width="5" stroke-linecap="round"/>
+            <line x1="${p(r1)}" y1="${q(r1)}" x2="${p(r2)}" y2="${q(r2)}" style="stroke:var(--text)" stroke-width="2" stroke-linecap="round"/>`;
+  }
+  return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+    <circle cx="${c}" cy="${c}" r="${r}" fill="none" style="stroke:var(--track)" stroke-width="${sw}"/>
+    <circle cx="${c}" cy="${c}" r="${r}" fill="none" style="stroke:${fillColor(l)}" stroke-width="${sw}" stroke-linecap="${l.a > 0 ? 'round' : 'butt'}"
+      stroke-dasharray="${circ * l.a / 100} ${circ}" transform="rotate(-90 ${c} ${c})"/>
+    ${tick}</svg>`;
+}
+
+// ---------- Dropdown-Varianten ----------
+const refreshBtn = () => `<button class="icon-btn ${state.refreshing ? 'spin' : ''}" data-action="refresh" title="Aktualisieren">${ICON_REFRESH}</button>`;
+
+function ddA({ providers, prov, limits, tabsShown }) {
+  return `<div class="dd dd-a">
+    ${tabsShown ? `<div class="seg">${providers.map(p => `<button class="seg-btn ${p.id === prov.id ? 'on' : ''}" data-tab="${p.id}">${p.icon}<span>${p.name}</span></button>`).join('')}</div>` : ''}
+    ${limits.map(l => `<div class="a-limit">
+      <div class="row"><span class="a-name">${l.name}</span><span class="a-pct">${pct(l.a)}</span></div>
+      ${barLine(l, 6)}
+      <div class="row sub"><span>${resetText(l)}</span><span class="st ${stCls(l)}">${stText(l)}</span></div>
+    </div>`).join('')}
+    <div class="sep"></div>
+    <div class="row foot"><span class="secondary">${updText()}</span>
+      <span class="btns">${refreshBtn()}<button class="text-btn" data-action="quit">Beenden</button></span></div>
+  </div>`;
+}
+
+function ddB({ providers, tabsShown }) {
+  return `<div class="dd dd-b">
+    ${providers.map((p, i) => `
+      ${i > 0 ? '<div class="menu-sep"></div>' : ''}
+      ${tabsShown ? `<div class="menu-header">${p.name}</div>` : ''}
+      ${p.limits.map(l => `<div class="menu-custom">
+        <div class="row"><span>${l.name}</span><span class="b-pct">${pct(l.a)}</span></div>
+        ${barTri(l)}
+        <div class="b-sub">${resetText(l)} · <span class="st ${stCls(l)}">${stText(l)}</span></div>
+      </div>`).join('')}`).join('')}
+    <div class="menu-sep"></div>
+    <div class="menu-item" data-action="refresh"><span>${state.refreshing ? 'Aktualisiere …' : 'Jetzt aktualisieren'}</span><span class="kbd">⌘R</span></div>
+    <div class="menu-item disabled">${updText()}</div>
+    <div class="menu-sep"></div>
+    <div class="menu-item" data-action="quit"><span>Beenden</span><span class="kbd">⌘Q</span></div>
+  </div>`;
+}
+
+function ddC({ providers, prov, limits, tabsShown }) {
+  const withPace = limits.filter(l => l.pace != null);
+  const ahead = withPace.filter(l => l.diff > 0).sort((a, b) => b.diff - a.diff);
+  const hero = ahead[0] || [...limits].sort((a, b) => b.a - a.a)[0];
+  const others = limits.filter(l => l !== hero);
+  let sentence = '';
+  if (hero.pace != null) {
+    const elapsed = hero.fenster - hero.resetIn, rate = hero.a / elapsed;
+    if (hero.diff > 0 && rate > 0) {
+      const leer = NOW + (100 - hero.a) / rate;
+      sentence = `Bei diesem Tempo ist das Limit <b>${dayOffset(leer) === 0 ? 'um ' : ''}${uhr(leer)}</b> erschöpft, der Reset kommt erst ${dayOffset(hero.resetAt) === 0 ? 'um ' : ''}${uhr(hero.resetAt)}.`;
+    } else {
+      const rest = Math.max(0, 100 - (hero.a + rate * hero.resetIn));
+      sentence = `Bei diesem Tempo bleiben bis zum Reset (${uhr(hero.resetAt)}) noch <b>rund ${pct(rest)}</b> übrig.`;
+    }
+  } else sentence = 'Das Fenster beginnt mit der ersten Nachricht.';
+  return `<div class="dd dd-c">
+    ${tabsShown ? `<nav class="c-rail">${providers.map(p => `<button class="${p.id === prov.id ? 'on' : ''}" data-tab="${p.id}" title="${p.name}">${p.icon}</button>`).join('')}</nav>` : ''}
+    <div class="c-main">
+      <div class="c-hero-top"><span class="c-hero-name">${hero.name}</span><span class="c-badge st ${stCls(hero)}">${stText(hero)}</span></div>
+      <div class="c-big">${Math.round(hero.a)}<span>%</span></div>
+      ${barGhost(hero, 10)}
+      <div class="pace-cap">${hero.pace == null ? '' : `<span style="left:${hero.pace}%">Pace ${pct(hero.pace)}</span>`}</div>
+      <div class="c-sentence">${sentence}<br>${resetText(hero)}</div>
+      ${others.map(l => `<div class="c-other">
+        <span>${l.name}</span>${barGhost(l, 5)}<span class="pct">${pct(l.a)}</span>
+        <div class="meta"><span>${resetText(l)}</span><span class="st ${stCls(l)}">${stText(l)}</span></div>
+      </div>`).join('')}
+      <div class="c-foot"><span class="secondary small">${updText()}</span>
+        <span>${refreshBtn()}<button class="icon-btn" data-action="quit" title="Beenden">${ICON_POWER}</button></span></div>
+    </div>
+  </div>`;
+}
+
+function ddD({ providers, prov, limits, tabsShown }) {
+  return `<div class="dd dd-d">
+    ${tabsShown ? `<div class="d-tabs">${providers.map(p => `<button class="${p.id === prov.id ? 'on' : ''}" data-tab="${p.id}">${p.icon}${p.name}</button>`).join('')}</div>` : ''}
+    <div class="d-rings">${limits.map(l => `<div class="d-card" title="${tip(l)}">
+      <div class="d-ring">${ringBig(l, 84)}<div class="center"><span>${Math.round(l.a)}<small>%</small></span></div></div>
+      <div class="d-name">${l.kurz}</div>
+      <div class="d-st st ${stCls(l)}">${l.pace == null ? '–' : (l.diff >= 0 ? '▲ ' : '▼ ') + stText(l)}</div>
+      <div class="d-reset">${l.resetAt == null ? 'noch nicht gestartet' : resetWhen(l)}</div>
+    </div>`).join('')}</div>
+    <div class="d-foot"><span>${updText()}</span>·<button data-action="refresh">${state.refreshing ? 'Aktualisiere …' : 'Aktualisieren'}</button>·<button data-action="quit">Beenden</button></div>
+  </div>`;
+}
+
+// ---------- Rendern ----------
+function ctx() {
+  const providers = [{ id: 'claude', name: 'Claude', icon: ICON_CLAUDE, limits: claudeLimits() }];
+  if (state.tabs === 'zwei') providers.push({ id: 'codex', name: 'Codex', icon: ICON_CODEX, limits: codexLimits() });
+  const prov = providers.find(p => p.id === state.provider) || providers[0];
+  return { providers, prov, limits: prov.limits, tabsShown: state.tabs !== 'aus' };
+}
+
+const mbIcons = {
+  cloud: `<svg width="18" height="14" viewBox="0 0 18 14" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M5 12.5h8.5a3 3 0 0 0 .3-6A4.5 4.5 0 0 0 5.2 5.5 3.5 3.5 0 0 0 5 12.5z"/></svg>`,
+  battery: `<svg width="26" height="13" viewBox="0 0 26 13" fill="none"><rect x=".7" y=".7" width="21.6" height="11.6" rx="3.2" stroke="currentColor" stroke-opacity=".5" stroke-width="1.2"/><rect x="2.5" y="2.5" width="14" height="8" rx="1.6" fill="currentColor"/><path d="M24 4.5v4" stroke="currentColor" stroke-opacity=".5" stroke-width="1.6" stroke-linecap="round"/></svg>`,
+  wifi: `<svg width="17" height="13" viewBox="0 0 17 13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M1.5 4.6a10 10 0 0 1 14 0"/><path d="M4 7.3a6.4 6.4 0 0 1 9 0"/><path d="M6.4 9.9a3 3 0 0 1 4.2 0"/></svg>`,
+  search: `<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="6" cy="6" r="4.3"/><path d="M9.2 9.2l3.3 3.3"/></svg>`,
+  cc: `<svg width="16" height="14" viewBox="0 0 16 14" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1" y="1.5" width="14" height="4.6" rx="2.3"/><rect x="1" y="7.9" width="14" height="4.6" rx="2.3"/><circle cx="12.7" cy="3.8" r="1.4" fill="currentColor"/><circle cx="3.3" cy="10.2" r="1.4" fill="currentColor"/></svg>`,
+};
+function clockText() {
+  const d = new Date();
+  return `${WT[d.getDay()]} ${d.getDate()}. ${d.toLocaleDateString('de-DE', { month: 'short' })} ${hhmm(d)}`;
+}
+
+function render() {
+  const c = ctx(), cl = c.providers[0].limits;
+
+  document.getElementById('mb-right').innerHTML = `
+    <span class="mi opt">${mbIcons.cloud}</span>
+    <span class="mi status-item ${state.open ? 'active' : ''}" id="status-item" title="AI Usage (Prototyp)">${symbolHTML(state.sym, cl)}</span>
+    <span class="mi">${mbIcons.battery}</span><span class="mi">${mbIcons.wifi}</span>
+    <span class="mi opt">${mbIcons.search}</span><span class="mi">${mbIcons.cc}</span>
+    <span class="mi clock">${clockText()}</span>`;
+
+  const host = document.getElementById('dropdown-host');
+  host.innerHTML = state.open ? { A: ddA, B: ddB, C: ddC, D: ddD }[state.dd](c) : '';
+  if (state.open && !NARROW_MQ.matches) {
+    const dd = host.firstElementChild, si = document.getElementById('status-item').getBoundingClientRect();
+    let left = si.left + si.width / 2 - dd.offsetWidth / 2;
+    left = Math.max(16, Math.min(left, innerWidth - dd.offsetWidth - 16));
+    dd.style.left = left + 'px'; dd.style.top = '32px';
+  }
+
+  const strip = th => `<div class="strip ${th}">${[1, 2, 3, 4, 5].map(n =>
+    `<div class="cell ${n === state.sym ? 'on' : ''}" data-sym="${n}">${symbolHTML(n, cl)}<span class="n">${n}</span></div>`).join('')}</div>`;
+  document.getElementById('compare').innerHTML = `<h3>Alle Symbol-Varianten (Originalgröße, anklicken wählt aus)</h3>
+    ${strip('hell')}${strip('dunkel')}
+    <div class="note">1 ${SYM[1]} · 2 ${SYM[2]} · 3 ${SYM[3]}<br>4 ${SYM[4]} (Session, Woche, Fable) · 5 ${SYM[5]}<br>Symbole 2, 3 und 5 zeigen das Session-Limit.</div>`;
+
+  const chips = (key, opts) => `<span class="chips">${opts.map(([v, label]) =>
+    `<button class="chip ${String(key === 'theme' ? effectiveTheme() : state[key]) === v ? 'on' : ''}" data-set="${key}=${v}">${label}</button>`).join('')}</span>`;
+  document.getElementById('switcher').innerHTML = `<span class="sw-badge">PROTOTYP</span>
+    <div class="sw-grid">
+      <span class="sw-k">Dropdown</span><span class="sw-cyc"><button data-sw="dd:-1">◀</button><span><b>${state.dd}</b> · ${DD[state.dd]}</span><button data-sw="dd:1">▶</button>
+        ${state.dd === 'B' ? '<span style="color:#8a8a95">(Provider als Abschnitte statt Tabs)</span>' : ''}</span>
+      <span class="sw-k">Symbol</span><span class="sw-cyc"><button data-sw="sym:-1">◀</button><span><b>${state.sym}</b> · ${SYM[state.sym]}</span><button data-sw="sym:1">▶</button></span>
+      <span class="sw-k">Reset</span>${chips('reset', [['countdown', 'Countdown'], ['uhrzeit', 'Uhrzeit'], ['beides', 'Beides']])}
+      <span class="sw-k">Tabs</span>${chips('tabs', [['aus', 'Nur Claude, ohne Tab-Leiste'], ['an', 'Nur Claude, mit Tab-Leiste'], ['zwei', 'Claude + Codex (nur Vorschau)']])}
+      <span class="sw-k">Daten</span>${chips('daten', Object.entries(SZENARIEN).map(([k, v]) => [k, v.label]))}
+      <span class="sw-k">Ansicht</span>${chips('theme', [['light', 'Hell'], ['dark', 'Dunkel']])}
+    </div>
+    <div class="sw-hint">← → Dropdown · ↑ ↓ Symbol · Klick aufs Symbol in der Menüleiste öffnet und schließt das Dropdown</div>`;
+  syncURL();
+}
+
+// ---------- Interaktion ----------
+const DD_KEYS = Object.keys(DD);
+function cycle(kind, step) {
+  if (kind === 'dd') state.dd = DD_KEYS[(DD_KEYS.indexOf(state.dd) + step + DD_KEYS.length) % DD_KEYS.length];
+  else state.sym = ((state.sym - 1 + step + 5) % 5) + 1;
+  state.open = true;
+  render();
+}
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('show'), 2200);
+}
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-action],[data-tab],[data-sw],[data-set],[data-sym],#status-item');
+  if (!el) {
+    if (!e.target.closest('.dd, #switcher, #compare')) { state.open = false; render(); }
+    return;
+  }
+  if (el.id === 'status-item') { state.open = !state.open; return render(); }
+  if (el.dataset.sw) { const [k, s] = el.dataset.sw.split(':'); return cycle(k, +s); }
+  if (el.dataset.sym) { state.sym = +el.dataset.sym; state.open = true; return render(); }
+  if (el.dataset.set) {
+    const [k, v] = el.dataset.set.split('=');
+    if (k === 'theme') document.documentElement.dataset.theme = v; else state[k] = v; if (k === 'tabs' && v !== 'zwei') state.provider = 'claude';
+    state.open = true; return render();
+  }
+  if (el.dataset.tab) { state.provider = el.dataset.tab; return render(); }
+  if (el.dataset.action === 'refresh' && !state.refreshing) {
+    state.refreshing = true; render();
+    setTimeout(() => { state.refreshing = false; state.lastUpdated = Date.now(); state.nudge += 1; render(); }, 900);
+  }
+  if (el.dataset.action === 'quit') { state.open = false; render(); toast('„Beenden“ geklickt. Im Prototyp passiert nichts, die echte App würde sich schließen.'); }
+});
+document.addEventListener('keydown', e => {
+  if (e.target.closest('input, textarea, [contenteditable]')) return;
+  if (e.key === 'ArrowRight') cycle('dd', 1);
+  if (e.key === 'ArrowLeft') cycle('dd', -1);
+  if (e.key === 'ArrowDown') { e.preventDefault(); cycle('sym', 1); }
+  if (e.key === 'ArrowUp') { e.preventDefault(); cycle('sym', -1); }
+});
+addEventListener('resize', render);
+setInterval(render, 30e3);
+render();
+</script>
