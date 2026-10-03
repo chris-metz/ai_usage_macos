@@ -34,8 +34,12 @@ _Avoid_: Stundenkontingent, Stundenlimit, 5h-Limit
 Claudes Limit mit 7-Tage-Fenster über alle Modelle.
 _Avoid_: Wochenkontingent
 
+**Modell-Limit**:
+Ein Wochenlimit von Claude, das nur die Nutzung eines bestimmten Modells zählt. Welche Modelle eines haben, legt Claude fest; es können keins, eins oder mehrere sein.
+_Avoid_: modellspezifisches Limit, Scoped-Limit
+
 **Fable-Limit**:
-Claudes modellspezifisches Wochenlimit, das nur die Nutzung von Fable zählt.
+Das Modell-Limit für Fable, derzeit das einzige.
 _Avoid_: Fable usage, Fable-Kontingent
 
 ## Pace
