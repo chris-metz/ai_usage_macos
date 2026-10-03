@@ -1,0 +1,7 @@
+You are currently using your subscription to power your Claude Code usage
+
+Current session: 14% used · resets Oct 3 at 1:09pm (Europe/Berlin)
+Current week (all models): 36% used · resets Oct 7 at 2:59am (Europe/Berlin)
+Current week (Fable): 0% used · resets Oct 7 at 3am (Europe/Berlin)
+
+[… Abschnitt „What's contributing to your limits usage?“ gekürzt: lokale Statistik zu Requests, Skills, Subagents und MCP-Servern …]
