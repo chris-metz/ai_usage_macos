@@ -1,3 +1,7 @@
+## Language
+
+Write everything in English: code, identifiers, comments, commit messages, docs, ADRs, issues and issue comments. This holds even when the conversation with the user is in German.
+
 ## Agent skills
 
 ### Issue tracker
