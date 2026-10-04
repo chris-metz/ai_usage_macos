@@ -44,6 +44,19 @@ public struct SettingsView: View {
     }
 }
 
+/// The id of the settings window's `Window` scene.
+public let settingsWindowID = "settings"
+
+extension OpenWindowAction {
+    /// Opens the settings window, or brings it to the front if it is open,
+    /// and activates the app (§5). The activation policy stays `.accessory`,
+    /// so no Dock icon appears.
+    public func openSettings() {
+        self(id: settingsWindowID)
+        NSApplication.shared.activate()
+    }
+}
+
 /// The version line of the settings window's footer (§4):
 /// `Version 0.1 (a1b2c3d)`, or `Version 0.1` when the bundle has no commit
 /// key.
