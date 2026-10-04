@@ -4,6 +4,13 @@ import Testing
 
 @testable import PacemarkClaude
 
+/// The problems as the spec's appendix words them.
+private let unexpectedResponse = Problem(
+    heading: "Can't read your limits",
+    message: "Claude changed how it reports limits. A newer version of Pacemark should fix this.",
+    link: ProblemLink(title: "Open on GitHub", url: URL(string: "https://github.com/chris-metz/pacemark")!)
+)
+
 /// The provider flow on a temp home with a fake `claude` that is never run:
 /// a `FakeRunner` answers instead.
 @Suite struct ClaudeProviderTests {
@@ -77,6 +84,18 @@ import Testing
         }
         #expect(limits.map(\.title) == ["Session limit", "Weekly limit", "Fable limit"])
         #expect(limits.map(\.window?.utilization) == [14, 36, 0])
+    }
+
+    @Test func nullRateLimitsAreUnavailable() async throws {
+        let runner = FakeRunner.claude(usage: try .fixture("variant-rate-limits-null.stream.jsonl"))
+
+        #expect(await provider(runner).fetch() == .unavailable)
+    }
+
+    @Test func schemaMismatchIsTheUnexpectedResponseProblem() async throws {
+        let runner = FakeRunner.claude(usage: try .fixture("variant-wrong-type.stream.jsonl"))
+
+        #expect(await provider(runner).fetch() == .problem(unexpectedResponse))
     }
 
     @Test func nonZeroExitIsUnavailableEvenWithLimitsOnStdout() async throws {

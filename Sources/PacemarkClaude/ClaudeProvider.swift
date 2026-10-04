@@ -44,6 +44,7 @@ public nonisolated final class ClaudeProvider: Provider {
             claudeLog.error("The /usage output has no usage report")
         case .unexpected(let reason):
             claudeLog.error("The usage report breaks the schema: \(reason, privacy: .public)")
+            return .problem(.unexpectedResponse)
         }
         return .unavailable
     }
