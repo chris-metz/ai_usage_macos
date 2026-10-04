@@ -32,12 +32,16 @@ private let unexpectedResponse = Problem(
         try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: claude.path(percentEncoded: false))
     }
 
+    /// A provider whose `claude` passes the version check, so `runner` only
+    /// sees the steps after it. `ClaudeProviderBinaryTests` covers the check.
     func provider(_ runner: FakeRunner) -> ClaudeProvider {
         ClaudeProvider(
             homeDirectory: home,
             userName: "tester",
-            locator: ClaudeLocator(homeDirectory: home, rootDirectory: directory.url.appending(path: "root")),
-            runner: runner
+            locator: ClaudeLocator(
+                homeDirectory: home, rootDirectory: directory.url.appending(path: "root"), userName: "tester",
+                loginShell: URL(filePath: "/nonexistent/login-shell"), runner: runner),
+            runner: CurrentVersionRunner(next: runner)
         )
     }
 
@@ -123,15 +127,6 @@ private let unexpectedResponse = Problem(
         #expect(await provider(runner).fetch() == .unavailable)
     }
 
-    /// Interim until the "Claude Code not found" problem exists.
-    @Test func missingClaudeIsUnavailableForNow() async throws {
-        try FileManager.default.removeItem(at: claude)
-        let runner = FakeRunner { _ in .exited(status: 0, stdout: try Fixtures.data("usage.stream.jsonl"), stderr: Data()) }
-
-        #expect(await provider(runner).fetch() == .unavailable)
-        #expect(runner.commands.isEmpty)
-    }
-
     /// `auth status` exits with 1 when logged out; only its JSON counts.
     @Test func noReportWhileLoggedOutIsTheNotLoggedInProblem() async throws {
         let runner = FakeRunner.claude(
@@ -188,5 +183,16 @@ private let unexpectedResponse = Problem(
         _ = await provider(runner).fetch()
 
         #expect(runner.commands(["auth", "status"]).isEmpty)
+    }
+}
+
+/// Answers `claude --version` with the version fixture and passes every
+/// other command on to `next`.
+private nonisolated struct CurrentVersionRunner: CommandRunner {
+    let next: FakeRunner
+
+    func run(_ command: Command) async throws -> CommandResult {
+        guard command.arguments == ["--version"] else { return try await next.run(command) }
+        return try .fixture("version.txt")
     }
 }
