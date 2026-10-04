@@ -125,6 +125,7 @@ claude -p --no-session-persistence --strict-mcp-config --output-format stream-js
 ## Offen
 
 1. **Form der Antwort bei inaktivem Session-Fenster.** Nachmessen mit dem Befehl oben, morgens vor der ersten Nutzung von Claude.
+   _Answered on 4 October 2026: see [`claude-usage-no-session-window.md`](claude-usage-no-session-window.md)._
 2. **Ob eine signierte App über Security.framework einen Dialog bekommt.** Getestet wurde nur das Werkzeug `security`.
 3. **Ob es auf Pro eine Fable-Zeile gibt.** Es steht nur ein Max-Account zur Verfügung.
 4. **Ob `refreshTokenExpiresAt` bei einem Refresh verlängert wird**, oder ob nach rund 18 Tagen ohnehin ein neuer `/login` nötig ist.
