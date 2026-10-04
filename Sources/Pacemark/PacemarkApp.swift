@@ -8,6 +8,7 @@ import SwiftUI
 struct PacemarkApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
     @State private var model: AppModel
+    @State private var openAtLogin = OpenAtLogin(loginItem: MainAppLoginItem(), bundleURL: Bundle.main.bundleURL)
 
     init() {
         let model = AppModel(provider: ClaudeProvider(), settingsStore: SettingsStore(defaults: .standard))
@@ -24,7 +25,11 @@ struct PacemarkApp: App {
         .menuBarExtraStyle(.window)
 
         Window("Pacemark Settings", id: settingsWindowID) {
-            SettingsView(model: model, version: versionText(infoDictionary: Bundle.main.infoDictionary ?? [:]))
+            SettingsView(
+                model: model,
+                openAtLogin: openAtLogin,
+                version: versionText(infoDictionary: Bundle.main.infoDictionary ?? [:])
+            )
         }
         // The first launch opens no window.
         .defaultLaunchBehavior(.suppressed)
