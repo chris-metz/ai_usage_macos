@@ -42,10 +42,9 @@ import os
         now = clock()
     }
 
-    /// The limits of the last successful query, in provider order.
-    public var limits: [Limit] { state.limits ?? [] }
-
-    /// What the menu bar item and the dropdown show at `now` (§6.3).
+    /// What the menu bar item and the dropdown show at `now` (§6.3). The
+    /// model holds no settings yet; of them, `display` reads only the refresh
+    /// interval.
     public var display: Display {
         PacemarkKit.display(state, settings: Settings(refreshIntervalMinutes: Int(refreshInterval / 60)), now: now)
     }
