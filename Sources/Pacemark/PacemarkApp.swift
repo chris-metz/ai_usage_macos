@@ -11,12 +11,14 @@ struct PacemarkApp: App {
     init() {
         let model = AppModel(provider: ClaudeProvider())
         _model = State(initialValue: model)
-        model.launch()
+        Driver.start(model)
     }
 
     var body: some Scene {
         MenuBarExtra {
+            // MenuBarExtra rebuilds the view on every open.
             DropdownView(model: model)
+                .onAppear { model.dropdownOpened() }
         } label: {
             MenuBarLabel(model: model)
         }

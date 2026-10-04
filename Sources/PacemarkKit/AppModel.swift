@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import os
 
 /// The app's state: the provider, its query state and the current time.
 /// The menu bar item and the dropdown render from it.
@@ -53,6 +54,8 @@ import Observation
         return MenuBarDisplay(percentText: percent, accessibilityText: "\(limit.title) \(percent)")
     }
 
+    // MARK: Events
+
     /// The app has launched: the first query runs at once.
     public func launch() {
         schedule()
@@ -63,7 +66,7 @@ import Observation
     public func dropdownOpened() {
         now = clock()
         if shouldQueryOnOpen(state, now: now) {
-            query()
+            query(.dropdown)
         }
     }
 
@@ -71,8 +74,9 @@ import Observation
     /// latest 30 s from now.
     public func wake() {
         if isNetworkSatisfied {
-            query()
+            query(.wake)
         } else {
+            appLog.info("Woke without network: waiting for it for up to 30 s")
             wakeDeadline = clock().addingTimeInterval(30)
             schedule()
         }
@@ -81,10 +85,11 @@ import Observation
     /// The network path changed. When it comes back after a wake or a
     /// temporary error, the query runs at once.
     public func networkChanged(isSatisfied: Bool) {
-        let cameBack = isSatisfied && !isNetworkSatisfied
+        guard isSatisfied != isNetworkSatisfied else { return }
         isNetworkSatisfied = isSatisfied
-        if cameBack, wakeDeadline != nil || state.lastOutcome == .unavailable {
-            query()
+        appLog.info("Network path \(isSatisfied ? "satisfied" : "not satisfied", privacy: .public)")
+        if isSatisfied, wakeDeadline != nil || state.lastOutcome == .unavailable {
+            query(.network)
         }
     }
 
@@ -92,6 +97,8 @@ import Observation
     public func minuteTick() {
         now = clock()
     }
+
+    // MARK: Queries
 
     /// Queries now if the schedule says so, and otherwise arms the timer for
     /// the next scheduled query.
@@ -105,9 +112,10 @@ import Observation
             next = min(next, wakeDeadline)
         }
         guard next > now else {
-            query()
+            query(.schedule)
             return
         }
+        appLog.info("Next query at \(next.formatted(.iso8601), privacy: .public)")
         timer = Task { [weak self, sleep] in
             do {
                 try await sleep(next.timeIntervalSince(now))
@@ -120,19 +128,25 @@ import Observation
 
     /// Starts a query unless one runs: a trigger during a query is dropped,
     /// and the query's end recomputes the next time.
-    private func query() {
-        guard !state.isQuerying else { return }
+    private func query(_ trigger: QueryTrigger) {
+        guard !state.isQuerying else {
+            appLog.info("Dropped the \(trigger.rawValue, privacy: .public) trigger: a query is running")
+            return
+        }
+        appLog.info("Query started by the \(trigger.rawValue, privacy: .public) trigger")
         state.isQuerying = true
         wakeDeadline = nil
         timer?.cancel()
         timer = nil
+        let startedAt = clock()
         Task {
             let result = await provider.fetch()
-            finish(result)
+            finish(result, startedAt: startedAt)
         }
     }
 
-    private func finish(_ result: FetchResult) {
+    /// Records the result (§6.4) and recomputes the next time.
+    private func finish(_ result: FetchResult, startedAt: Date) {
         let finishedAt = clock()
         state.isQuerying = false
         state.lastAttemptAt = finishedAt
@@ -151,7 +165,26 @@ import Observation
             state.failureStreak = 0
         }
         now = finishedAt
+        let seconds = finishedAt.timeIntervalSince(startedAt)
+        appLog.info("Query finished after \(seconds, format: .fixed(precision: 1), privacy: .public) s: \(describe(result), privacy: .public)")
         schedule()
+    }
+}
+
+/// What started a query, for the log.
+private nonisolated enum QueryTrigger: String {
+    /// Launch, a scheduled time, or a wake's 30 s deadline.
+    case schedule
+    case dropdown
+    case wake
+    case network
+}
+
+private nonisolated func describe(_ result: FetchResult) -> String {
+    switch result {
+    case .limits(let limits): "\(limits.count) limits"
+    case .unavailable: "unavailable"
+    case .problem(let problem): "problem \"\(problem.heading)\""
     }
 }
 
