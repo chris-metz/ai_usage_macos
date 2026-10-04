@@ -8,7 +8,8 @@ nonisolated struct Command: Equatable, Sendable {
     var environment: [String: String]
     var workingDirectory: URL
     var standardInput: URL
-    /// After this, SIGTERM, and SIGKILL a grace period later.
+    /// After this, SIGTERM to the process group, and SIGKILL a grace period
+    /// later.
     var timeout: Duration
 }
 
