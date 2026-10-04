@@ -38,7 +38,7 @@ public nonisolated func display(_ state: ProviderState, providerID: String, sett
     let dropdown: DropdownContent = switch (state.lastOutcome, state.limits) {
     case (nil, _): .loading
     case (.problem(let problem)?, _): .problem(problem)
-    case (_, let limits?): visibleRows(limits, providerID: providerID, hidden: settings.hiddenLimits)
+    case (_, let limits?): visibleRows(limits, providerID: providerID, settings: settings)
     default: .noValues
     }
     return Display(
@@ -50,8 +50,8 @@ public nonisolated func display(_ state: ProviderState, providerID: String, sett
 
 /// The limits the settings don't hide, or `allHidden` if they hide every
 /// one.
-private nonisolated func visibleRows(_ limits: [Limit], providerID: String, hidden: [String]) -> DropdownContent {
-    let visible = limits.filter { !hidden.contains($0.qualifiedID(providerID: providerID)) }
+private nonisolated func visibleRows(_ limits: [Limit], providerID: String, settings: Settings) -> DropdownContent {
+    let visible = limits.filter { settings.isLimitShownInDropdown($0, providerID: providerID) }
     return visible.isEmpty && !limits.isEmpty ? .allHidden : .limits(visible)
 }
 

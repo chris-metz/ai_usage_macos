@@ -79,7 +79,7 @@ import os
 
     /// Whether the dropdown shows `limit`.
     public func isLimitShownInDropdown(_ limit: Limit) -> Bool {
-        !settings.hiddenLimits.contains(qualifiedID(of: limit))
+        settings.isLimitShownInDropdown(limit, providerID: provider.id)
     }
 
     /// Shows or hides `limit` in the dropdown. Other stored hidden limits

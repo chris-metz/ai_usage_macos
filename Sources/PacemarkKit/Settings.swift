@@ -36,4 +36,10 @@ public nonisolated struct Settings: Equatable, Sendable {
     public var refreshInterval: TimeInterval {
         TimeInterval(refreshIntervalMinutes * 60)
     }
+
+    /// Whether the dropdown shows `limit` of the provider `providerID`:
+    /// every limit but the hidden ones.
+    public func isLimitShownInDropdown(_ limit: Limit, providerID: String) -> Bool {
+        !hiddenLimits.contains(limit.qualifiedID(providerID: providerID))
+    }
 }
