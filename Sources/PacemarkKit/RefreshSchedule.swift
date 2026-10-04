@@ -51,8 +51,8 @@ public nonisolated func nextQueryAt(_ state: ProviderState, interval: TimeInterv
     case 2: 2 * 60
     default: interval
     }
-    // Every limit, also one the dropdown hides. The 65 s get past Claude
-    // Code's own 60 s snapshot.
+    // Every limit, also one the dropdown hides. The 65 s get past the
+    // provider's own 60 s snapshot (§6.2).
     let afterResets = (state.limits ?? [])
         .compactMap { $0.window?.resetsAt.addingTimeInterval(65) }
         .filter { $0 > lastAttemptAt }

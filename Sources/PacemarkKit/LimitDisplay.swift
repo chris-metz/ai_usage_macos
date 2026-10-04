@@ -144,7 +144,8 @@ public nonisolated func limitDisplay(
 /// `Resets in 1 hr 52 min` below a day away, else `Resets Wed 03:00`
 /// (§3 Reset line).
 private nonisolated func resetLine(_ resetsAt: Date, now: Date, timeZone: TimeZone, locale: Locale) -> String {
-    // Claude reports 00:59:59.88 and 01:00:00 for the same reset.
+    // Reset times jitter around the full minute: 00:59:59.88 and 01:00:00
+    // can be the same reset (§3 Reset line).
     let reset = Date(timeIntervalSince1970: (resetsAt.timeIntervalSince1970 / 60).rounded() * 60)
     let minutes = max(1, Int((reset.timeIntervalSince(now) / 60).rounded(.up)))
     if minutes >= 24 * 60 {
