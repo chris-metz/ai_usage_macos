@@ -1,22 +1,42 @@
 import Foundation
 import Observation
 
-/// The app's state: the provider, its last limits and the current time.
+/// The app's state: the provider, its query state and the current time.
 /// The menu bar item and the dropdown render from it.
+///
+/// Events come in as methods; the model decides when to query (§6.2) and
+/// keeps one timer task for the next scheduled query.
 @Observable public final class AppModel {
     public let provider: any Provider
-    /// The limits of the last successful query, in provider order.
-    public private(set) var limits: [Limit] = []
-    /// The time everything renders at. Set at launch and after every query.
+    /// How long after the last attempt the next query runs.
+    public let refreshInterval: TimeInterval
+    /// What the model knows about the provider's queries.
+    public private(set) var state = ProviderState()
+    /// The time everything renders at.
     public private(set) var now: Date
 
     @ObservationIgnored private let clock: () -> Date
+    @ObservationIgnored private let sleep: @Sendable (TimeInterval) async throws -> Void
+    @ObservationIgnored private var timer: Task<Void, Never>?
 
-    public init(provider: any Provider, clock: @escaping () -> Date = { Date() }) {
+    /// - Parameters:
+    ///   - clock: The current time.
+    ///   - sleep: Waits the given number of seconds; throws when cancelled.
+    public init(
+        provider: any Provider,
+        refreshInterval: TimeInterval = 5 * 60,
+        clock: @escaping () -> Date = { Date() },
+        sleep: @escaping @Sendable (TimeInterval) async throws -> Void = { try await Task.sleep(for: .seconds($0)) }
+    ) {
         self.provider = provider
+        self.refreshInterval = refreshInterval
         self.clock = clock
+        self.sleep = sleep
         now = clock()
     }
+
+    /// The limits of the last successful query, in provider order.
+    public var limits: [Limit] { state.limits ?? [] }
 
     /// What the menu bar item shows: the first limit's percentage, or the
     /// glyph alone before the first result.
@@ -28,23 +48,75 @@ import Observation
         return MenuBarDisplay(percentText: percent, accessibilityText: "\(limit.title) \(percent)")
     }
 
-    /// Runs one query. A success replaces the limits; anything else keeps
-    /// them until the refresh schedule's bookkeeping (§6.4) arrives.
-    public func query() async {
-        let result = await provider.fetch()
-        if case .limits(let limits) = result {
-            self.limits = limits
-        }
-        now = clock()
+    /// The app has launched: the first query runs at once.
+    public func launch() {
+        schedule()
     }
 
-    /// Interim until the refresh schedule (§6.2): a query at once and then
-    /// every 5 min, until the task is cancelled.
-    public func queryEvery5Minutes() async {
-        while !Task.isCancelled {
-            await query()
-            try? await Task.sleep(for: .seconds(5 * 60))
+    /// The dropdown opened: it renders at the current time, and queries if
+    /// the last attempt is more than a minute old.
+    public func dropdownOpened() {
+        now = clock()
+        if shouldQueryOnOpen(state, now: now) {
+            query()
         }
+    }
+
+    /// Queries now if the schedule says so, and otherwise arms the timer for
+    /// the next scheduled query.
+    private func schedule() {
+        timer?.cancel()
+        timer = nil
+        guard !state.isQuerying else { return }
+        let now = clock()
+        let next = nextQueryAt(state, interval: refreshInterval, now: now)
+        guard next > now else {
+            query()
+            return
+        }
+        timer = Task { [weak self, sleep] in
+            do {
+                try await sleep(next.timeIntervalSince(now))
+            } catch {
+                return
+            }
+            self?.schedule()
+        }
+    }
+
+    /// Starts a query unless one runs: a trigger during a query is dropped,
+    /// and the query's end recomputes the next time.
+    private func query() {
+        guard !state.isQuerying else { return }
+        state.isQuerying = true
+        timer?.cancel()
+        timer = nil
+        Task {
+            let result = await provider.fetch()
+            finish(result)
+        }
+    }
+
+    private func finish(_ result: FetchResult) {
+        let finishedAt = clock()
+        state.isQuerying = false
+        state.lastAttemptAt = finishedAt
+        switch result {
+        case .limits(let limits):
+            state.limits = limits
+            state.lastSuccessAt = finishedAt
+            state.lastOutcome = .success
+            state.failureStreak = 0
+        case .unavailable:
+            state.lastOutcome = .unavailable
+            state.failureStreak += 1
+        case .problem(let problem):
+            state.limits = nil
+            state.lastOutcome = .problem(problem)
+            state.failureStreak = 0
+        }
+        now = finishedAt
+        schedule()
     }
 }
 

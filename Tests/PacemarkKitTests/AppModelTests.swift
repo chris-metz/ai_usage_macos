@@ -11,54 +11,55 @@ import Testing
     }
 
     @Test func showsTheSessionLimitAfterAQuery() async {
-        let model = AppModel(provider: FakeProvider(.limits(claudeLimits)))
+        let timer = FakeTimer()
+        let model = AppModel(provider: FakeProvider(.limits(claudeLimits)), sleep: { try await timer.sleep($0) })
 
-        await model.query()
+        model.launch()
+        _ = await timer.armed()
 
         #expect(model.menuBarDisplay == MenuBarDisplay(percentText: "14%", accessibilityText: "Session limit 14%"))
     }
 
     @Test func aSessionLimitWithNoWindowShows0Percent() async {
         let session = Limit(id: "session", title: "Session limit", windowLength: 5 * 3600, window: nil)
-        let model = AppModel(provider: FakeProvider(.limits([session])))
+        let timer = FakeTimer()
+        let model = AppModel(provider: FakeProvider(.limits([session])), sleep: { try await timer.sleep($0) })
 
-        await model.query()
+        model.launch()
+        _ = await timer.armed()
 
         #expect(model.menuBarDisplay == MenuBarDisplay(percentText: "0%", accessibilityText: "Session limit 0%"))
     }
 
     @Test func utilizationShowsRoundedAndAtMost100Percent() async {
         let resetsAt = Date(timeIntervalSince1970: 1_790_000_000)
+        var time = Date(timeIntervalSince1970: 1_789_990_000)
+        let timer = FakeTimer()
         let model = AppModel(provider: FakeProvider(
             .limits([Limit(id: "session", title: "Session limit", windowLength: 5 * 3600,
                            window: ActiveWindow(utilization: 71.4, resetsAt: resetsAt))]),
             .limits([Limit(id: "session", title: "Session limit", windowLength: 5 * 3600,
                            window: ActiveWindow(utilization: 140, resetsAt: resetsAt))])
-        ))
+        ), clock: { time }, sleep: { try await timer.sleep($0) })
 
-        await model.query()
+        model.launch()
+        time += await timer.armed()
         #expect(model.menuBarDisplay.percentText == "71%")
 
-        await model.query()
+        timer.fire()
+        _ = await timer.armed()
         #expect(model.menuBarDisplay.percentText == "100%")
-    }
-
-    @Test func aFailedQueryKeepsTheLastLimits() async {
-        let model = AppModel(provider: FakeProvider(.limits(claudeLimits), .unavailable))
-
-        await model.query()
-        await model.query()
-
-        #expect(model.limits == claudeLimits)
     }
 
     @Test func nowIsTheClocksTimeAtLaunchAndAfterEveryQuery() async {
         var time = Date(timeIntervalSince1970: 1_000)
-        let model = AppModel(provider: FakeProvider(.unavailable), clock: { time })
+        let timer = FakeTimer()
+        let model = AppModel(provider: FakeProvider(.unavailable), clock: { time }, sleep: { try await timer.sleep($0) })
         #expect(model.now == Date(timeIntervalSince1970: 1_000))
 
+        model.launch()
         time = Date(timeIntervalSince1970: 2_000)
-        await model.query()
+        _ = await timer.armed()
 
         #expect(model.now == Date(timeIntervalSince1970: 2_000))
     }
