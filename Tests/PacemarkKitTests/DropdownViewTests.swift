@@ -37,8 +37,11 @@ import Testing
 
     /// The dropdown after a query that delivered `limits`, at `now`.
     private func dropdown(_ limits: [Limit]) async -> some View {
-        let model = AppModel(provider: FakeProvider(.limits(limits)), clock: { now })
-        await model.query()
+        let timer = FakeTimer()
+        let model = AppModel(provider: FakeProvider(.limits(limits)), clock: { now },
+                             sleep: { try await timer.sleep($0) })
+        model.launch()
+        _ = await timer.armed()
         return DropdownView(model: model)
             .environment(\.timeZone, berlin)
             .environment(\.locale, enDE)

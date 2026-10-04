@@ -11,8 +11,7 @@ struct PacemarkApp: App {
     init() {
         let model = AppModel(provider: ClaudeProvider())
         _model = State(initialValue: model)
-        // Interim until the refresh schedule replaces it.
-        Task { await model.queryEvery5Minutes() }
+        Driver.start(model)
     }
 
     var body: some Scene {
