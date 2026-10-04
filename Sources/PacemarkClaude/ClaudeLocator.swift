@@ -91,7 +91,10 @@ nonisolated struct ClaudeLocator: Sendable {
         guard case .exited(_, let stdout, _)? = try? await runner.run(command) else { return nil }
         return String(decoding: stdout, as: UTF8.self)
             .split(whereSeparator: \.isNewline)
-            .map { URL(filePath: $0.trimmingCharacters(in: .whitespaces)) }
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            // A relative path would resolve against Pacemark's working directory.
+            .filter { $0.hasPrefix("/") }
+            .map { URL(filePath: $0) }
             .last(where: Self.isExecutableFile)
     }
 

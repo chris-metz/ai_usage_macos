@@ -140,6 +140,17 @@ import Testing
         #expect(await locator(FakeRunner { _ in answer }).locate() == nil)
     }
 
+    /// A relative line would resolve against Pacemark's own working
+    /// directory, not the shell's.
+    @Test func loginShellLineThatIsNoAbsolutePathDoesNotCount() async throws {
+        // Enough `..` to reach `/` from any working directory, so the line
+        // names /bin/sh, an executable file.
+        let relative = String(repeating: "../", count: 64) + "bin/sh"
+        let runner = FakeRunner { _ in .exited(status: 0, stdout: Data("\(relative)\n".utf8), stderr: Data()) }
+
+        #expect(await locator(runner).locate() == nil)
+    }
+
     @Test func loginShellThatCannotStartGivesNothing() async throws {
         #expect(await locator(FakeRunner { _ in throw CocoaError(.executableNotLoadable) }).locate() == nil)
     }
