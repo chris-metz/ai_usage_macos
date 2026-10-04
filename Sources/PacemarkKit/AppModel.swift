@@ -36,6 +36,15 @@ import Observation
         }
         now = clock()
     }
+
+    /// Interim until the refresh schedule (§6.2): a query at once and then
+    /// every 5 min, until the task is cancelled.
+    public func queryEvery5Minutes() async {
+        while !Task.isCancelled {
+            await query()
+            try? await Task.sleep(for: .seconds(5 * 60))
+        }
+    }
 }
 
 /// The limit's displayed utilization, e.g. `14%`: rounded to a whole

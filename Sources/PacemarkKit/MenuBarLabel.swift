@@ -1,4 +1,19 @@
 import AppKit
+import SwiftUI
+
+/// The `MenuBarExtra` label: one drawn image, since SwiftUI drops colour,
+/// opacity and accessibility modifiers on the label.
+public struct MenuBarLabel: View {
+    let model: AppModel
+
+    public init(model: AppModel) {
+        self.model = model
+    }
+
+    public var body: some View {
+        Image(nsImage: menuBarImage(model.menuBarDisplay))
+    }
+}
 
 /// What the menu bar item shows (§2 States).
 public nonisolated struct MenuBarDisplay: Equatable, Sendable {
