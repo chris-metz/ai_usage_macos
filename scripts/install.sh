@@ -20,3 +20,10 @@ ditto build/Pacemark.app /Applications/Pacemark.app
 
 open /Applications/Pacemark.app
 echo "Installed and launched /Applications/Pacemark.app"
+
+# Homebrew still counts a release it installed as its own and would bring it
+# back over this build.
+if command -v brew >/dev/null && brew list --cask pacemark >/dev/null 2>&1; then
+    echo "Warning: Homebrew lists the cask pacemark, so the next brew upgrade replaces" >&2
+    echo "this local build with the release. brew uninstall --cask pacemark ends that." >&2
+fi

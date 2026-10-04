@@ -1,8 +1,20 @@
 #!/bin/sh
 # Turns the SwiftPM build into build/Pacemark.app and signs it.
+# Usage: scripts/bundle.sh                    a local build, as install.sh makes
+#        scripts/bundle.sh --release X.Y.Z    a release build, as release.sh makes
 set -eu
 
 cd "$(dirname "$0")/.."
+
+case "${1:-}" in
+    "") RELEASE= ;;
+    --release)
+        [ $# -eq 2 ] || { echo "Usage: $0 [--release X.Y.Z]" >&2; exit 2; }
+        RELEASE=1
+        VERSION=$2
+        ;;
+    *) echo "Usage: $0 [--release X.Y.Z]" >&2; exit 2 ;;
+esac
 
 APP=build/Pacemark.app
 CONTENTS="$APP/Contents"
@@ -40,7 +52,12 @@ done
 
 # 4. Write Info.plist. CFBundleVersion is the commit count, since macOS
 #    expects digits and dots there; the commit hash goes to PacemarkGitCommit.
+#    A local build carries the version of the last release it contains.
 if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    if [ -z "$RELEASE" ]; then
+        LAST_TAG="$(git describe --tags --abbrev=0 --match 'v[0-9]*' 2>/dev/null || true)"
+        VERSION="${LAST_TAG#v}"
+    fi
     BUNDLE_VERSION="$(git rev-list --count HEAD)"
     COMMIT="$(git rev-parse --short HEAD)"
     if [ -n "$(git status --porcelain)" ]; then
@@ -50,6 +67,7 @@ else
     BUNDLE_VERSION=1
     COMMIT=
 fi
+VERSION="${VERSION:-0.1}"
 
 plutil -create xml1 "$PLIST"
 plutil -insert CFBundleIdentifier -string xyz.chrismetz.pacemark "$PLIST"
@@ -57,7 +75,7 @@ plutil -insert CFBundleName -string Pacemark "$PLIST"
 plutil -insert CFBundleDisplayName -string Pacemark "$PLIST"
 plutil -insert CFBundleExecutable -string Pacemark "$PLIST"
 plutil -insert CFBundlePackageType -string APPL "$PLIST"
-plutil -insert CFBundleShortVersionString -string 0.1 "$PLIST"
+plutil -insert CFBundleShortVersionString -string "$VERSION" "$PLIST"
 plutil -insert CFBundleVersion -string "$BUNDLE_VERSION" "$PLIST"
 if [ -n "$COMMIT" ]; then
     plutil -insert PacemarkGitCommit -string "$COMMIT" "$PLIST"
@@ -68,17 +86,34 @@ plutil -insert CFBundleDevelopmentRegion -string en "$PLIST"
 # Add actool's CFBundleIconName and CFBundleIconFile (both AppIcon).
 /usr/libexec/PlistBuddy -c "Merge build/partial.plist" "$PLIST"
 
-# 5. Sign with the first Apple Development identity, else ad hoc. No
-#    hardened runtime and no notarization: a locally built app isn't
-#    quarantined.
-IDENTITY="$(security find-identity -v -p codesigning | awk '/"Apple Development/ { print $2; exit }')"
-if [ -n "$IDENTITY" ]; then
-    echo "Signing with $(security find-identity -v -p codesigning | awk -F'"' '/"Apple Development/ { print $2; exit }')"
-    codesign --force --sign "$IDENTITY" "$APP"
+# 5. Sign. A release build gets the first Developer ID Application identity,
+#    with the hardened runtime and a secure timestamp, as notarization
+#    requires. A local build gets the first Apple Development identity, else
+#    ad hoc. No hardened runtime and no notarization: a locally built app
+#    isn't quarantined.
+# identity PREFIX: the line of the first valid identity whose name starts with PREFIX.
+identity() {
+    security find-identity -v -p codesigning | grep -m 1 "\"$1" || true
+}
+if [ -n "$RELEASE" ]; then
+    IDENTITY="$(identity "Developer ID Application: ")"
+    if [ -z "$IDENTITY" ]; then
+        echo "No Developer ID Application identity found in the keychain" >&2
+        exit 1
+    fi
+    echo "Signing with $(echo "$IDENTITY" | awk -F'"' '{ print $2 }')"
+    codesign --force --options runtime --timestamp \
+        --sign "$(echo "$IDENTITY" | awk '{ print $2 }')" "$APP"
 else
-    echo "No Apple Development identity found, signing ad hoc"
-    codesign --force --sign - "$APP"
+    IDENTITY="$(identity "Apple Development")"
+    if [ -n "$IDENTITY" ]; then
+        echo "Signing with $(echo "$IDENTITY" | awk -F'"' '{ print $2 }')"
+        codesign --force --sign "$(echo "$IDENTITY" | awk '{ print $2 }')" "$APP"
+    else
+        echo "No Apple Development identity found, signing ad hoc"
+        codesign --force --sign - "$APP"
+    fi
 fi
 codesign --verify --strict "$APP"
 
-echo "Built $APP (version 0.1, build $BUNDLE_VERSION${COMMIT:+, commit $COMMIT})"
+echo "Built $APP (version $VERSION, build $BUNDLE_VERSION${COMMIT:+, commit $COMMIT})"
