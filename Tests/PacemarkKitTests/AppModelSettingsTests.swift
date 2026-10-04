@@ -27,6 +27,48 @@ struct AppModelSettingsTests {
             == Settings(showPercentage: false, hiddenLimits: ["claude/model:Fable"]))
     }
 
+    @Test func pickingAMenuBarLimitStoresItsQualifiedIDAndTitleAndShowsAtOnce() async {
+        let defaults = ThrowawayDefaults()
+        let timer = FakeTimer()
+        let model = AppModel(provider: FakeProvider(.limits(claudeLimits)),
+                             settingsStore: SettingsStore(defaults: defaults.defaults),
+                             clock: { beforeTheResets }, sleep: { try await timer.sleep($0) })
+        model.launch()
+        _ = await timer.armed()
+
+        model.pickMenuBarLimit(claudeLimits[1])
+
+        let stored = SettingsStore(defaults: defaults.defaults).load()
+        #expect(stored.menuBarLimitID == "fake/weekly")
+        #expect(stored.menuBarLimitTitle == "Weekly limit")
+        #expect(model.display.menuBar.accessibilityText == "Weekly limit 36%")
+    }
+
+    @Test func hidingAndShowingALimitKeepsHiddenIDsTheProviderDoesntDeliver() async {
+        let defaults = ThrowawayDefaults()
+        SettingsStore(defaults: defaults.defaults).save(Settings(hiddenLimits: ["fake/model:Opus"]))
+        let timer = FakeTimer()
+        let model = AppModel(provider: FakeProvider(.limits(claudeLimits)),
+                             settingsStore: SettingsStore(defaults: defaults.defaults),
+                             clock: { beforeTheResets }, sleep: { try await timer.sleep($0) })
+        model.launch()
+        _ = await timer.armed()
+
+        model.setLimit(claudeLimits[1], shownInDropdown: false)
+        model.setLimit(claudeLimits[0], shownInDropdown: false)
+
+        #expect(SettingsStore(defaults: defaults.defaults).load().hiddenLimits
+            == ["fake/model:Opus", "fake/weekly", "fake/session"])
+        #expect(model.display.dropdown == .limits([claudeLimits[2]]))
+        #expect(!model.isLimitShownInDropdown(claudeLimits[1]))
+
+        model.setLimit(claudeLimits[1], shownInDropdown: true)
+
+        #expect(SettingsStore(defaults: defaults.defaults).load().hiddenLimits == ["fake/model:Opus", "fake/session"])
+        #expect(model.display.dropdown == .limits([claudeLimits[1], claudeLimits[2]]))
+        #expect(model.isLimitShownInDropdown(claudeLimits[1]))
+    }
+
     @Test func anIntervalChangeWhoseNewTimeHasPassedQueriesNow() async {
         var time = launchedAt
         let timer = FakeTimer()
