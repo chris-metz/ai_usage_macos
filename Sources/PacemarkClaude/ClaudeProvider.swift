@@ -26,8 +26,7 @@ public nonisolated final class ClaudeProvider: Provider {
 
     @concurrent
     public func fetch() async -> FetchResult {
-        // Interim: "not found", "rate_limits: null", the schema problems and
-        // the `auth status` step all give `unavailable` until they exist.
+        // Interim: "not found" gives `unavailable` until it exists.
         guard let claude = locator.locate() else {
             claudeLog.error("Found no claude in the known locations")
             return .unavailable
@@ -40,13 +39,33 @@ public nonisolated final class ClaudeProvider: Provider {
             return .limits(limits)
         case .rateLimitsNull:
             claudeLog.error("The usage report has rate_limits: null")
+            return .unavailable
         case .missing:
             claudeLog.error("The /usage output has no usage report")
+            return await loginResult(claude)
         case .unexpected(let reason):
             claudeLog.error("The usage report breaks the schema: \(reason, privacy: .public)")
             return .problem(.unexpectedResponse)
         }
-        return .unavailable
+    }
+
+    /// Asks `claude auth status` why `/usage` gave no report. Only its JSON
+    /// counts: the exit status is 1 when logged out.
+    private func loginResult(_ claude: URL) async -> FetchResult {
+        guard case .exited(_, let stdout, _)? = await run(isolated(claude, arguments: ["auth", "status"])) else {
+            return .unavailable
+        }
+        switch ClaudeParser.authStatus(from: stdout) {
+        case .loggedOut?:
+            claudeLog.error("claude auth status says logged out")
+            return .problem(.notLoggedIn)
+        case .loggedIn?:
+            claudeLog.error("claude auth status says logged in, yet /usage gave no usage report")
+            return .problem(.unexpectedResponse)
+        case nil:
+            claudeLog.error("claude auth status gave no readable loggedIn")
+            return .unavailable
+        }
     }
 
     /// Runs one invocation and logs its exit status, duration and stderr;

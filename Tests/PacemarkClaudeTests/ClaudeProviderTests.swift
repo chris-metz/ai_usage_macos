@@ -5,6 +5,11 @@ import Testing
 @testable import PacemarkClaude
 
 /// The problems as the spec's appendix words them.
+private let notLoggedIn = Problem(
+    heading: "Claude Code is not logged in",
+    message: "Run `claude` in Terminal and log in.",
+    link: nil
+)
 private let unexpectedResponse = Problem(
     heading: "Can't read your limits",
     message: "Claude changed how it reports limits. A newer version of Pacemark should fix this.",
@@ -99,15 +104,15 @@ private let unexpectedResponse = Problem(
     }
 
     @Test func nonZeroExitIsUnavailableEvenWithLimitsOnStdout() async throws {
-        let runner = FakeRunner { _ in
-            .exited(status: 1, stdout: try Fixtures.data("usage.stream.jsonl"), stderr: Data("API error\n".utf8))
-        }
+        let runner = FakeRunner.claude(
+            usage: .exited(status: 1, stdout: try Fixtures.data("usage.stream.jsonl"), stderr: Data("API error\n".utf8))
+        )
 
         #expect(await provider(runner).fetch() == .unavailable)
     }
 
     @Test func timeoutIsUnavailable() async throws {
-        let runner = FakeRunner { _ in .timedOut }
+        let runner = FakeRunner.claude(usage: .timedOut)
 
         #expect(await provider(runner).fetch() == .unavailable)
     }
@@ -127,13 +132,61 @@ private let unexpectedResponse = Problem(
         #expect(runner.commands.isEmpty)
     }
 
-    /// Interim until the `auth status` step exists.
-    @Test func outputWithoutAUsageReportIsUnavailableForNow() async throws {
-        let runner = FakeRunner { _ in
-            .exited(status: 0, stdout: try Fixtures.data("usage-logged-out.stream.jsonl"), stderr: Data())
-        }
+    /// `auth status` exits with 1 when logged out; only its JSON counts.
+    @Test func noReportWhileLoggedOutIsTheNotLoggedInProblem() async throws {
+        let runner = FakeRunner.claude(
+            usage: try .fixture("usage-logged-out.stream.jsonl"),
+            authStatus: try .fixture("auth-status-logged-out.json", status: 1)
+        )
+
+        #expect(await provider(runner).fetch() == .problem(notLoggedIn))
+    }
+
+    @Test func noReportWhileLoggedInIsTheUnexpectedResponseProblem() async throws {
+        let runner = FakeRunner.claude(
+            usage: try .fixture("usage-logged-out.stream.jsonl"),
+            authStatus: try .fixture("auth-status-logged-in.json")
+        )
+
+        #expect(await provider(runner).fetch() == .problem(unexpectedResponse))
+    }
+
+    @Test(arguments: [
+        CommandResult.timedOut,
+        .exited(status: 1, stdout: Data(), stderr: Data("error: unknown command 'auth'\n".utf8)),
+        .exited(status: 0, stdout: Data("Logged in as someone\n".utf8), stderr: Data()),
+    ])
+    func unreadableAuthStatusIsUnavailable(authStatus: CommandResult) async throws {
+        let runner = FakeRunner.claude(usage: try .fixture("usage-logged-out.stream.jsonl"), authStatus: authStatus)
 
         #expect(await provider(runner).fetch() == .unavailable)
-        #expect(runner.commands.count == 1)
+    }
+
+    @Test func authStatusRunsWithTheSameIsolationAsUsage() async throws {
+        let runner = FakeRunner.claude(
+            usage: try .fixture("usage-logged-out.stream.jsonl"),
+            authStatus: try .fixture("auth-status-logged-out.json", status: 1)
+        )
+
+        _ = await provider(runner).fetch()
+
+        let usage = try #require(runner.commands.first { $0.arguments.last == "/usage" })
+        var expected = usage
+        expected.arguments = ["auth", "status"]
+        #expect(runner.commands(["auth", "status"]) == [expected])
+    }
+
+    @Test(arguments: [
+        "usage.stream.jsonl", "variant-rate-limits-null.stream.jsonl", "variant-wrong-type.stream.jsonl",
+    ])
+    func authStatusNeverRunsWhenThereIsAReport(usage: String) async throws {
+        let runner = FakeRunner.claude(
+            usage: try .fixture(usage),
+            authStatus: try .fixture("auth-status-logged-out.json", status: 1)
+        )
+
+        _ = await provider(runner).fetch()
+
+        #expect(runner.commands(["auth", "status"]).isEmpty)
     }
 }
