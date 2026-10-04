@@ -160,6 +160,91 @@ import Testing
         #expect(command.standardInput.path(percentEncoded: false) == "/dev/null")
         #expect(command.timeout == .seconds(30))
     }
+
+    @Test func versionIsCheckedOnceWhileTheBinaryStaysTheSame() async throws {
+        try installClaude("2.1.289", at: home.appending(path: ".local/bin/claude"))
+        let runner = fakeRunner()
+        let provider = provider(runner)
+
+        #expect(await provider.fetch().isLimits)
+        #expect(await provider.fetch().isLimits)
+
+        #expect(versionChecks(runner) == 1)
+        #expect(usageRuns(runner).count == 2)
+    }
+
+    /// The native installer's `claude update` re-points the symlink. Every
+    /// modification date stays the same, so only the target path changes.
+    @Test func newSymlinkTargetRunsTheCheckAgain() async throws {
+        let versions = home.appending(path: ".local/share/claude/versions")
+        let claude = home.appending(path: ".local/bin/claude")
+        try installClaude("2.1.282", at: versions.appending(path: "2.1.282"), modified: date(1_791_000_000))
+        try installClaude("2.1.289", at: versions.appending(path: "2.1.289"), modified: date(1_791_000_000))
+        try makeSymlink(at: claude, to: versions.appending(path: "2.1.282"), modified: date(1_791_000_000))
+        let runner = fakeRunner()
+        let provider = provider(runner)
+        #expect(await provider.fetch() == .problem(.claudeCodeTooOld(found: try version("2.1.282"))))
+        #expect(await provider.fetch() == .problem(.claudeCodeTooOld(found: try version("2.1.282"))))
+        #expect(versionChecks(runner) == 1)
+
+        try FileManager.default.removeItem(at: claude)
+        try makeSymlink(at: claude, to: versions.appending(path: "2.1.289"), modified: date(1_791_000_000))
+
+        #expect(await provider.fetch().isLimits)
+        #expect(versionChecks(runner) == 2)
+    }
+
+    /// npm replaces the file behind its `bin` symlink in place: only the
+    /// target's modification date changes.
+    @Test func newModificationDateRunsTheCheckAgain() async throws {
+        let claude = home.appending(path: ".nvm/versions/node/v22.11.0/bin/claude")
+        let package = home.appending(path: ".nvm/versions/node/v22.11.0/lib/node_modules/@anthropic-ai/claude-code")
+        let target = package.appending(path: "bin/claude.exe")
+        try installClaude("2.1.282", at: target, modified: date(1_791_000_000))
+        try makeSymlink(at: claude, to: target, modified: date(1_791_000_000))
+        let runner = fakeRunner()
+        let provider = provider(runner)
+        #expect(await provider.fetch() == .problem(.claudeCodeTooOld(found: try version("2.1.282"))))
+        #expect(await provider.fetch() == .problem(.claudeCodeTooOld(found: try version("2.1.282"))))
+        #expect(versionChecks(runner) == 1)
+
+        try installClaude("2.1.289", at: target, modified: date(1_791_100_000))
+
+        #expect(await provider.fetch().isLimits)
+        #expect(versionChecks(runner) == 2)
+    }
+
+    @Test func failedVersionCheckRunsAgainOnTheNextQuery() async throws {
+        try installClaude("2.1.289", at: home.appending(path: ".local/bin/claude"))
+        let failures = Mutex(1)
+        let runner = fakeRunner(version: { command in
+            if failures.withLock({ failures in defer { failures -= 1 }; return failures > 0 }) { return .timedOut }
+            return .exited(status: 0, stdout: try Data(contentsOf: command.executable), stderr: Data())
+        })
+        let provider = provider(runner)
+
+        #expect(await provider.fetch() == .unavailable)
+        #expect(await provider.fetch().isLimits)
+        #expect(versionChecks(runner) == 2)
+    }
+}
+
+private func versionChecks(_ runner: FakeRunner) -> Int {
+    runner.commands.filter { $0.arguments == ["--version"] }.count
+}
+
+private func version(_ text: String) throws -> ClaudeVersion {
+    try #require(ClaudeParser.version(from: Data(text.utf8)))
+}
+
+/// A symlink whose own modification date is `modified`, so re-creating it
+/// changes nothing but its target.
+private func makeSymlink(at url: URL, to target: URL, modified: Date) throws {
+    try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+    try FileManager.default.createSymbolicLink(at: url, withDestinationURL: target)
+    let seconds = Int(modified.timeIntervalSince1970)
+    var times = [timeval(tv_sec: seconds, tv_usec: 0), timeval(tv_sec: seconds, tv_usec: 0)]
+    #expect(lutimes(url.path(percentEncoded: false), &times) == 0)
 }
 
 /// The binaries `/usage` ran with, in order.
@@ -197,8 +282,10 @@ private func fakeRunner(
 }
 
 /// A fake `claude` whose `--version` prints `version`.
-private func installClaude(_ version: String, at url: URL) throws {
+private func installClaude(_ version: String, at url: URL, modified: Date? = nil) throws {
     try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
     try Data("\(version) (Claude Code)\n".utf8).write(to: url)
-    try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: url.path(percentEncoded: false))
+    var attributes: [FileAttributeKey: Any] = [.posixPermissions: 0o755]
+    attributes[.modificationDate] = modified
+    try FileManager.default.setAttributes(attributes, ofItemAtPath: url.path(percentEncoded: false))
 }

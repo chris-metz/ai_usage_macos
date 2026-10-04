@@ -120,6 +120,29 @@ extension ClaudeProvider {
     fileprivate struct Memory {
         /// The binary found last; searched again once it isn't executable.
         var claude: URL?
+        /// The last version check that ran to the end, and which binary it
+        /// checked.
+        var versionCheck: (binary: BinaryIdentity, result: FetchResult?)?
+    }
+
+    /// Which file a path runs: `claude update` re-points the native
+    /// installer's symlink, Homebrew and mise change its target, and npm
+    /// changes the file's modification date.
+    fileprivate struct BinaryIdentity: Equatable {
+        /// Symlinks resolved.
+        let path: String
+        let modificationDate: Date?
+
+        init(of url: URL) {
+            let path = url.path(percentEncoded: false)
+            if let resolved = realpath(path, nil) {
+                self.path = String(cString: resolved)
+                free(resolved)
+            } else {
+                self.path = path
+            }
+            modificationDate = (try? FileManager.default.attributesOfItem(atPath: self.path))?[.modificationDate] as? Date
+        }
     }
 
     /// The remembered binary while it's still executable, else the result of
@@ -135,8 +158,17 @@ extension ClaudeProvider {
     }
 
     /// The result that ends the query when `claude` is too old or the check
-    /// fails; nil to carry on.
+    /// fails; nil to carry on. A check that ran to the end counts until the
+    /// binary's identity changes; a failed one runs again on the next query.
     private func checkVersion(of claude: URL) async -> FetchResult? {
+        let binary = BinaryIdentity(of: claude)
+        if let check = memory.withLock(\.versionCheck), check.binary == binary { return check.result }
+        let result = await runVersionCheck(of: claude)
+        if result != .unavailable { memory.withLock { $0.versionCheck = (binary, result) } }
+        return result
+    }
+
+    private func runVersionCheck(of claude: URL) async -> FetchResult? {
         guard case .exited(0, let stdout, _)? = await run(isolated(claude, arguments: ["--version"])) else {
             claudeLog.error("The version check failed")
             return .unavailable
