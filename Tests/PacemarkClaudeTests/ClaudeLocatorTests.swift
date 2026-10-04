@@ -18,13 +18,13 @@ import Testing
         home = directory.url.appending(path: "home", directoryHint: .isDirectory)
         root = directory.url.appending(path: "root", directoryHint: .isDirectory)
         locator = ClaudeLocator(
-            homeDirectory: home, rootDirectory: root, userName: "tester", loginShell: loginShell,
+            homeDirectory: home, rootDirectory: root, userName: "tester", loginShell: fakeLoginShell,
             runner: FakeRunner { _ in .exited(status: 1, stdout: Data(), stderr: Data()) })
     }
 
     /// A locator whose login shell answers with `runner`.
     func locator(_ runner: FakeRunner) -> ClaudeLocator {
-        ClaudeLocator(homeDirectory: home, rootDirectory: root, userName: "tester", loginShell: loginShell, runner: runner)
+        ClaudeLocator(homeDirectory: home, rootDirectory: root, userName: "tester", loginShell: fakeLoginShell, runner: runner)
     }
 
     @Test func findsAnExecutableInAKnownLocation() async throws {
@@ -162,7 +162,7 @@ import Testing
 
         let command = try #require(runner.commands.first)
         #expect(runner.commands.count == 1)
-        #expect(command.executable == loginShell)
+        #expect(command.executable == fakeLoginShell)
         #expect(command.arguments == ["-l", "-i", "-c", "command -v claude"])
         #expect(command.environment == [
             "HOME": directory.path + "/home",
@@ -184,22 +184,4 @@ import Testing
         #expect(await locator(runner).locate() == claude)
         #expect(runner.commands.isEmpty)
     }
-}
-
-/// Never run: a fake runner answers in its place.
-private let loginShell = URL(filePath: "/nonexistent/login-shell")
-
-private func makeExecutable(at url: URL) throws {
-    try makeFile(at: url)
-    try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: url.path(percentEncoded: false))
-}
-
-private func makeSymlink(at url: URL, to target: URL) throws {
-    try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-    try FileManager.default.createSymbolicLink(at: url, withDestinationURL: target)
-}
-
-private func makeFile(at url: URL) throws {
-    try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-    try Data("#!/bin/sh\nexit 0\n".utf8).write(to: url)
 }

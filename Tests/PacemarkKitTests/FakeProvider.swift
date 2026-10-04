@@ -1,3 +1,4 @@
+import Foundation
 import PacemarkKit
 import Testing
 
@@ -21,4 +22,17 @@ import Testing
         }
         return results.removeFirst()
     }
+}
+
+/// A model whose first query, at `now`, got `result`. Its timer is under
+/// the test's control and never fires.
+func model(
+    after result: FetchResult, settings: PacemarkKit.Settings = PacemarkKit.Settings(), at now: Date
+) async -> AppModel {
+    let timer = FakeTimer()
+    let model = AppModel(provider: FakeProvider(result), clock: { now }, sleep: { try await timer.sleep($0) })
+    model.settings = settings
+    model.launch()
+    _ = await timer.armed()
+    return model
 }

@@ -8,7 +8,7 @@ import Testing
 @Suite struct SettingsViewTests {
     /// The defaults, after a query delivered the three Claude limits.
     @Test func settingsWindowDefault() async {
-        let model = await model(after: .limits(claudeLimits))
+        let model = await model(after: .limits(claudeLimits), at: beforeTheResets)
 
         expectViewSnapshot(settingsView(model, openAtLogin: installedCopy(.notRegistered)), width: 440)
     }
@@ -42,7 +42,7 @@ import Testing
     @Test func settingsWindowNotAvailable() async {
         let settings = PacemarkKit.Settings(hiddenLimits: ["fake/weekly"], menuBarLimitID: "fake/model:Opus",
                                             menuBarLimitTitle: "Opus limit")
-        let model = await model(after: .limits(claudeLimits), settings: settings)
+        let model = await model(after: .limits(claudeLimits), settings: settings, at: beforeTheResets)
 
         expectViewSnapshot(settingsView(model, openAtLogin: installedCopy(.notRegistered)), width: 440)
     }
@@ -108,16 +108,6 @@ import Testing
     }
 
     /// A model with `settings` after its first query answered `result`.
-    private func model(after result: FetchResult, settings: PacemarkKit.Settings = PacemarkKit.Settings()) async -> AppModel {
-        let timer = FakeTimer()
-        let model = AppModel(provider: FakeProvider(result), clock: { beforeTheResets },
-                             sleep: { try await timer.sleep($0) })
-        model.settings = settings
-        model.launch()
-        _ = await timer.armed()
-        return model
-    }
-
     private func settingsView(_ model: AppModel, openAtLogin: OpenAtLogin) -> SettingsView {
         SettingsView(model: model, openAtLogin: openAtLogin, version: "Version 0.1 (a1b2c3d)")
     }

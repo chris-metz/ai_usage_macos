@@ -132,13 +132,7 @@ import Testing
 
     /// The dropdown after the first query, which answered `result` at `now`.
     private func dropdown(after result: FetchResult, settings: PacemarkKit.Settings = PacemarkKit.Settings()) async -> some View {
-        let timer = FakeTimer()
-        let model = AppModel(provider: FakeProvider(result), clock: { now },
-                             sleep: { try await timer.sleep($0) })
-        model.settings = settings
-        model.launch()
-        _ = await timer.armed()
-        return dropdown(model)
+        dropdown(await model(after: result, settings: settings, at: now))
     }
 
     private func dropdown(_ model: AppModel) -> some View {
