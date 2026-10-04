@@ -17,7 +17,7 @@ public struct DropdownView: View {
                 HStack {
                     Text(limit.title)
                     Spacer()
-                    Text(percentText(limit))
+                    Text(limitDisplay(limit, now: model.now).percentText)
                         .monospacedDigit()
                 }
                 .font(.system(size: 13, weight: .semibold))

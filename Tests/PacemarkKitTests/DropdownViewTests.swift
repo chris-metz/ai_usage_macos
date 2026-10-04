@@ -4,7 +4,7 @@ import Testing
 /// The dropdown (§3), rendered in light and dark.
 @Suite struct DropdownViewTests {
     @Test func dropdownLimits() async {
-        let model = AppModel(provider: FakeProvider(.limits(claudeLimits)))
+        let model = AppModel(provider: FakeProvider(.limits(claudeLimits)), clock: { beforeTheResets })
         await model.query()
 
         expectViewSnapshot(DropdownView(model: model), width: 300)

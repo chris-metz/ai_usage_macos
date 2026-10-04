@@ -7,7 +7,8 @@ import Observation
     public let provider: any Provider
     /// The limits of the last successful query, in provider order.
     public private(set) var limits: [Limit] = []
-    /// The time everything renders at. Set at launch and after every query.
+    /// The time everything renders at. Set at launch, when the dropdown
+    /// opens and after every query.
     public private(set) var now: Date
 
     @ObservationIgnored private let clock: () -> Date
@@ -18,14 +19,20 @@ import Observation
         now = clock()
     }
 
-    /// What the menu bar item shows: the first limit's percentage, or the
-    /// glyph alone before the first result.
+    /// What the menu bar item shows: the displayed utilization of the menu
+    /// bar limit (for now the first limit), or the glyph alone before the
+    /// first result.
     public var menuBarDisplay: MenuBarDisplay {
         guard let limit = limits.first else {
             return MenuBarDisplay(percentText: nil, accessibilityText: "Pacemark")
         }
-        let percent = percentText(limit)
+        let percent = limitDisplay(limit, now: now).percentText
         return MenuBarDisplay(percentText: percent, accessibilityText: "\(limit.title) \(percent)")
+    }
+
+    /// The dropdown opened: render it at the current time.
+    public func dropdownOpened() {
+        now = clock()
     }
 
     /// Runs one query. A success replaces the limits; anything else keeps
@@ -46,14 +53,4 @@ import Observation
             try? await Task.sleep(for: .seconds(5 * 60))
         }
     }
-}
-
-/// The limit's displayed utilization, e.g. `14%`: rounded to a whole
-/// number, at most 100, and 0 with no window.
-///
-/// Interim: the full rule, including a reset time that has passed, comes
-/// with the limit display (§6.1).
-nonisolated func percentText(_ limit: Limit) -> String {
-    let utilization = min(max(limit.window?.utilization ?? 0, 0), 100)
-    return "\(Int(utilization.rounded()))%"
 }

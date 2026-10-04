@@ -11,7 +11,7 @@ import Testing
     }
 
     @Test func showsTheSessionLimitAfterAQuery() async {
-        let model = AppModel(provider: FakeProvider(.limits(claudeLimits)))
+        let model = AppModel(provider: FakeProvider(.limits(claudeLimits)), clock: { beforeTheResets })
 
         await model.query()
 
@@ -34,7 +34,7 @@ import Testing
                            window: ActiveWindow(utilization: 71.4, resetsAt: resetsAt))]),
             .limits([Limit(id: "session", title: "Session limit", windowLength: 5 * 3600,
                            window: ActiveWindow(utilization: 140, resetsAt: resetsAt))])
-        ))
+        ), clock: { beforeTheResets })
 
         await model.query()
         #expect(model.menuBarDisplay.percentText == "71%")
@@ -62,7 +62,31 @@ import Testing
 
         #expect(model.now == Date(timeIntervalSince1970: 2_000))
     }
+
+    @Test func openingTheDropdownUpdatesNow() {
+        var time = Date(timeIntervalSince1970: 1_000)
+        let model = AppModel(provider: FakeProvider(), clock: { time })
+
+        time = Date(timeIntervalSince1970: 2_000)
+        model.dropdownOpened()
+
+        #expect(model.now == Date(timeIntervalSince1970: 2_000))
+    }
+
+    @Test func theMenuBarShows0PercentOnceTheResetTimeHasPassed() async {
+        var time = beforeTheResets
+        let model = AppModel(provider: FakeProvider(.limits(claudeLimits)), clock: { time })
+        await model.query()
+
+        time = Date(timeIntervalSince1970: 1_790_000_001)
+        model.dropdownOpened()
+
+        #expect(model.menuBarDisplay == MenuBarDisplay(percentText: "0%", accessibilityText: "Session limit 0%"))
+    }
 }
+
+/// Inside every window of `claudeLimits`.
+let beforeTheResets = Date(timeIntervalSince1970: 1_789_990_000)
 
 /// Like the `usage.stream.jsonl` fixture: session 14%, weekly 36%, Fable 0%.
 let claudeLimits = [
