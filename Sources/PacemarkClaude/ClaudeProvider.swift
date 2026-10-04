@@ -35,6 +35,7 @@ public nonisolated final class ClaudeProvider: Provider {
         // Interim: "rate_limits: null", the schema problems and the
         // `auth status` step all give `unavailable` until they exist.
         guard let claude = await locate() else { return .problem(.claudeCodeNotFound) }
+        if let settled = await checkVersion(of: claude) { return settled }
 
         guard case .exited(0, let stdout, _)? = await run(usageCommand(claude)) else { return .unavailable }
         switch ClaudeParser.usageReport(from: stdout) {
@@ -131,5 +132,15 @@ extension ClaudeProvider {
         let claude = await locator.locate()
         memory.withLock { $0.claude = claude }
         return claude
+    }
+
+    /// The result that ends the query when `claude` is too old or the check
+    /// fails; nil to carry on.
+    private func checkVersion(of claude: URL) async -> FetchResult? {
+        guard case .exited(0, let stdout, _)? = await run(isolated(claude, arguments: ["--version"])) else {
+            return nil
+        }
+        guard let version = ClaudeParser.version(from: stdout) else { return nil }
+        return version.isTooOld ? .problem(.claudeCodeTooOld(found: version)) : nil
     }
 }

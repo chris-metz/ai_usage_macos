@@ -20,6 +20,8 @@ import Testing
         try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: claude.path(percentEncoded: false))
     }
 
+    /// A provider whose `claude` passes the version check, so `runner` only
+    /// sees the steps after it. `ClaudeProviderBinaryTests` covers the check.
     func provider(_ runner: FakeRunner) -> ClaudeProvider {
         ClaudeProvider(
             homeDirectory: home,
@@ -27,7 +29,7 @@ import Testing
             locator: ClaudeLocator(
                 homeDirectory: home, rootDirectory: directory.url.appending(path: "root"), userName: "tester",
                 loginShell: URL(filePath: "/nonexistent/login-shell"), runner: runner),
-            runner: runner
+            runner: CurrentVersionRunner(next: runner)
         )
     }
 
@@ -109,5 +111,16 @@ import Testing
 
         #expect(await provider(runner).fetch() == .unavailable)
         #expect(runner.commands.count == 1)
+    }
+}
+
+/// Answers `claude --version` with the version fixture and passes every
+/// other command on to `next`.
+private nonisolated struct CurrentVersionRunner: CommandRunner {
+    let next: FakeRunner
+
+    func run(_ command: Command) async throws -> CommandResult {
+        guard command.arguments == ["--version"] else { return try await next.run(command) }
+        return .exited(status: 0, stdout: try Fixtures.data("version.txt"), stderr: Data())
     }
 }

@@ -95,6 +95,20 @@ import Testing
         #expect(usageRuns(runner) == [volta, volta])
         #expect(runner.commands.filter { $0.executable == loginShell }.count == 1)
     }
+
+    @Test func versionBelow2_1_283IsTheTooOldProblemWithTheFoundVersion() async throws {
+        try installClaude("2.1.282", at: home.appending(path: ".local/bin/claude"))
+        let runner = fakeRunner()
+
+        let result = await provider(runner).fetch()
+
+        #expect(result == .problem(Problem(
+            heading: "Claude Code is too old",
+            message: "Pacemark needs version 2.1.283 or later (found 2.1.282). Run `claude update` in Terminal.",
+            link: nil
+        )))
+        #expect(usageRuns(runner).isEmpty)
+    }
 }
 
 /// The binaries `/usage` ran with, in order.
