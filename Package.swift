@@ -32,6 +32,8 @@ let package = Package(
         .testTarget(
             name: "PacemarkKitTests",
             dependencies: ["PacemarkKit"],
+            // Snapshot references are read via #filePath, not as resources.
+            exclude: ["__Snapshots__"],
             swiftSettings: swiftSettings
         ),
         .testTarget(
