@@ -187,22 +187,7 @@ import os
     /// Records the result (§6.4) and recomputes the next time.
     private func finish(_ result: FetchResult, startedAt: Date) {
         let finishedAt = clock()
-        state.isQuerying = false
-        state.lastAttemptAt = finishedAt
-        switch result {
-        case .limits(let limits):
-            state.limits = limits
-            state.lastSuccessAt = finishedAt
-            state.lastOutcome = .success
-            state.failureStreak = 0
-        case .unavailable:
-            state.lastOutcome = .unavailable
-            state.failureStreak += 1
-        case .problem(let problem):
-            state.limits = nil
-            state.lastOutcome = .problem(problem)
-            state.failureStreak = 0
-        }
+        state.record(result, finishedAt: finishedAt)
         now = finishedAt
         let seconds = finishedAt.timeIntervalSince(startedAt)
         appLog.info("Query finished after \(seconds, format: .fixed(precision: 1), privacy: .public) s: \(describe(result), privacy: .public)")
