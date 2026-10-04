@@ -74,10 +74,16 @@ import Testing
     }
 }
 
-/// A `UserDefaults` suite with a unique name, removed when the value goes
-/// away. Tests never touch the standard suite.
+/// A `UserDefaults` suite of its own, removed when the value goes away.
+/// Tests never touch the standard suite.
+///
+/// The suite name is an absolute path, which `UserDefaults` takes as the
+/// plist's location: the suite lives in the temporary directory instead of
+/// leaving an empty plist in `~/Library/Preferences` on every run.
 final class ThrowawayDefaults {
-    let suiteName = "xyz.chrismetz.pacemark.tests.\(UUID().uuidString)"
+    let suiteName = FileManager.default.temporaryDirectory
+        .appending(path: "pacemark-tests-\(UUID().uuidString)")
+        .path(percentEncoded: false)
     let defaults: UserDefaults
 
     init() {
@@ -86,5 +92,6 @@ final class ThrowawayDefaults {
 
     isolated deinit {
         defaults.removePersistentDomain(forName: suiteName)
+        try? FileManager.default.removeItem(atPath: suiteName + ".plist")
     }
 }
