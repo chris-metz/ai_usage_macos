@@ -47,9 +47,9 @@ private struct LimitBar: View {
     let paceMarker: Double?
 
     private let barHeight: CGFloat = 6
-    private let markerOverhang: CGFloat = 3
-    private let markerWidth: CGFloat = 2
-    private let markerOutline: CGFloat = 1.5
+    private let paceMarkerOverhang: CGFloat = 3
+    private let paceMarkerWidth: CGFloat = 2
+    private let paceMarkerOutline: CGFloat = 1.5
 
     var body: some View {
         GeometryReader { geometry in
@@ -63,10 +63,10 @@ private struct LimitBar: View {
                         .frame(width: width * fillFraction)
                     if let paceMarker {
                         // The outline: a gap cut out of the bar, so the
-                        // dropdown's background shows around the marker.
+                        // dropdown's background shows around the pace marker.
                         Rectangle()
-                            .frame(width: markerWidth + 2 * markerOutline)
-                            .offset(x: width * paceMarker - markerWidth / 2 - markerOutline)
+                            .frame(width: paceMarkerWidth + 2 * paceMarkerOutline)
+                            .offset(x: width * paceMarker - paceMarkerWidth / 2 - paceMarkerOutline)
                             .blendMode(.destinationOut)
                     }
                 }
@@ -76,13 +76,13 @@ private struct LimitBar: View {
                 if let paceMarker {
                     Rectangle()
                         .fill(.primary)
-                        .frame(width: markerWidth, height: barHeight + 2 * markerOverhang)
-                        .offset(x: width * paceMarker - markerWidth / 2)
+                        .frame(width: paceMarkerWidth, height: barHeight + 2 * paceMarkerOverhang)
+                        .offset(x: width * paceMarker - paceMarkerWidth / 2)
                 }
             }
             .frame(height: geometry.size.height)
         }
-        .frame(height: barHeight + 2 * markerOverhang)
+        .frame(height: barHeight + 2 * paceMarkerOverhang)
     }
 }
 
