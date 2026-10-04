@@ -11,21 +11,38 @@ public struct MenuBarLabel: View {
     }
 
     public var body: some View {
-        Image(nsImage: menuBarImage(model.menuBarDisplay))
+        Image(nsImage: menuBarImage(model.display.menuBar))
     }
 }
 
 /// What the menu bar item shows (§2 States).
 public nonisolated struct MenuBarDisplay: Equatable, Sendable {
-    /// The menu bar limit's displayed utilization, e.g. `14%`; nil shows the
-    /// glyph alone.
-    public var percentText: String?
+    /// What the item shows.
+    public var content: Content
     /// What VoiceOver reads for the item.
     public var accessibilityText: String
 
-    public init(percentText: String?, accessibilityText: String) {
-        self.percentText = percentText
+    public init(content: Content, accessibilityText: String) {
+        self.content = content
         self.accessibilityText = accessibilityText
+    }
+
+    public enum Content: Equatable, Sendable {
+        /// The glyph alone.
+        case glyph
+        /// The glyph and the menu bar limit's displayed utilization, e.g.
+        /// `14%`, in red from 90%.
+        case percentage(String, isRed: Bool)
+        /// The glyph and `⚠︎`: a persistent error.
+        case warning
+    }
+
+    /// The text right of the glyph, if any.
+    var percentText: String? {
+        switch content {
+        case .glyph, .warning: nil
+        case .percentage(let text, _): text
+        }
     }
 }
 

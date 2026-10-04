@@ -45,15 +45,9 @@ import os
     /// The limits of the last successful query, in provider order.
     public var limits: [Limit] { state.limits ?? [] }
 
-    /// What the menu bar item shows: the displayed utilization of the menu
-    /// bar limit (for now the first limit), or the glyph alone before the
-    /// first result.
-    public var menuBarDisplay: MenuBarDisplay {
-        guard let limit = limits.first else {
-            return MenuBarDisplay(percentText: nil, accessibilityText: "Pacemark")
-        }
-        let percent = limitDisplay(limit, now: now).percentText
-        return MenuBarDisplay(percentText: percent, accessibilityText: "\(limit.title) \(percent)")
+    /// What the menu bar item and the dropdown show at `now` (§6.3).
+    public var display: Display {
+        PacemarkKit.display(state, settings: Settings(refreshIntervalMinutes: Int(refreshInterval / 60)), now: now)
     }
 
     // MARK: Events

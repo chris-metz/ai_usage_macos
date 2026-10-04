@@ -7,7 +7,7 @@ import Testing
     @Test func showsTheGlyphAloneBeforeTheFirstResult() {
         let model = AppModel(provider: FakeProvider())
 
-        #expect(model.menuBarDisplay == MenuBarDisplay(percentText: nil, accessibilityText: "Pacemark"))
+        #expect(model.display.menuBar == MenuBarDisplay(content: .glyph, accessibilityText: "Pacemark"))
     }
 
     @Test func showsTheSessionLimitAfterAQuery() async {
@@ -18,7 +18,7 @@ import Testing
         model.launch()
         _ = await timer.armed()
 
-        #expect(model.menuBarDisplay == MenuBarDisplay(percentText: "14%", accessibilityText: "Session limit 14%"))
+        #expect(model.display.menuBar == MenuBarDisplay(content: .percentage("14%", isRed: false), accessibilityText: "Session limit 14%"))
     }
 
     @Test func aSessionLimitWithNoWindowShows0Percent() async {
@@ -29,7 +29,7 @@ import Testing
         model.launch()
         _ = await timer.armed()
 
-        #expect(model.menuBarDisplay == MenuBarDisplay(percentText: "0%", accessibilityText: "Session limit 0%"))
+        #expect(model.display.menuBar == MenuBarDisplay(content: .percentage("0%", isRed: false), accessibilityText: "Session limit 0%"))
     }
 
     @Test func utilizationShowsRoundedAndAtMost100Percent() async {
@@ -45,11 +45,11 @@ import Testing
 
         model.launch()
         time += await timer.armed()
-        #expect(model.menuBarDisplay.percentText == "71%")
+        #expect(model.display.menuBar.content == .percentage("71%", isRed: false))
 
         timer.fire()
         _ = await timer.armed()
-        #expect(model.menuBarDisplay.percentText == "100%")
+        #expect(model.display.menuBar.content == .percentage("100%", isRed: true))
     }
 
     @Test func nowIsTheClocksTimeAtLaunchAndAfterEveryQuery() async {
@@ -76,7 +76,7 @@ import Testing
         time = Date(timeIntervalSince1970: 1_790_000_001)
         model.minuteTick()
 
-        #expect(model.menuBarDisplay == MenuBarDisplay(percentText: "0%", accessibilityText: "Session limit 0%"))
+        #expect(model.display.menuBar == MenuBarDisplay(content: .percentage("0%", isRed: false), accessibilityText: "Session limit 0%"))
     }
 }
 
