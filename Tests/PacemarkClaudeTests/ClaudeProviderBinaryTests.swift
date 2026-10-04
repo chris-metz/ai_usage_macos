@@ -109,6 +109,57 @@ import Testing
         )))
         #expect(usageRuns(runner).isEmpty)
     }
+
+    @Test(arguments: [
+        CommandResult.exited(status: 1, stdout: Data("2.1.289 (Claude Code)\n".utf8), stderr: Data("error\n".utf8)),
+        .timedOut,
+    ])
+    func failedVersionCheckIsUnavailable(answer: CommandResult) async throws {
+        try installClaude("2.1.289", at: home.appending(path: ".local/bin/claude"))
+        let runner = fakeRunner(version: { _ in answer })
+
+        #expect(await provider(runner).fetch() == .unavailable)
+        #expect(usageRuns(runner).isEmpty)
+    }
+
+    @Test func versionCheckThatCannotStartIsUnavailable() async throws {
+        try installClaude("2.1.289", at: home.appending(path: ".local/bin/claude"))
+        let runner = fakeRunner(version: { _ in throw CocoaError(.executableNotLoadable) })
+
+        #expect(await provider(runner).fetch() == .unavailable)
+        #expect(usageRuns(runner).isEmpty)
+    }
+
+    /// A changed `--version` format must never block the app.
+    @Test func unparseableVersionCarriesOn() async throws {
+        try installClaude("2.1.289", at: home.appending(path: ".local/bin/claude"))
+        let runner = fakeRunner(version: { _ in .exited(status: 0, stdout: Data("Claude Code (dev build)\n".utf8), stderr: Data()) })
+
+        #expect(await provider(runner).fetch().isLimits)
+    }
+
+    @Test func checksTheVersionWithTheIsolatedInvocation() async throws {
+        let claude = home.appending(path: ".local/bin/claude")
+        try installClaude("2.1.289", at: claude)
+        let runner = fakeRunner()
+
+        _ = await provider(runner).fetch()
+
+        let command = try #require(runner.commands.first)
+        #expect(command.executable == claude)
+        #expect(command.arguments == ["--version"])
+        #expect(command.environment == [
+            "HOME": directory.path + "/home",
+            "USER": "tester",
+            "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
+            "DISABLE_AUTOUPDATER": "1",
+            "DISABLE_TELEMETRY": "1",
+        ])
+        #expect(command.workingDirectory.pathComponents
+            == home.pathComponents + ["Library", "Caches", "xyz.chrismetz.pacemark", "claude-cwd"])
+        #expect(command.standardInput.path(percentEncoded: false) == "/dev/null")
+        #expect(command.timeout == .seconds(30))
+    }
 }
 
 /// The binaries `/usage` ran with, in order.

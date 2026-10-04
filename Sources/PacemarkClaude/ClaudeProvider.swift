@@ -138,9 +138,20 @@ extension ClaudeProvider {
     /// fails; nil to carry on.
     private func checkVersion(of claude: URL) async -> FetchResult? {
         guard case .exited(0, let stdout, _)? = await run(isolated(claude, arguments: ["--version"])) else {
+            claudeLog.error("The version check failed")
+            return .unavailable
+        }
+        guard let version = ClaudeParser.version(from: stdout) else {
+            let output = String(decoding: stdout.prefix(2048), as: UTF8.self)
+            claudeLog.error("Found no version number in \(output, privacy: .public); carrying on")
             return nil
         }
-        guard let version = ClaudeParser.version(from: stdout) else { return nil }
-        return version.isTooOld ? .problem(.claudeCodeTooOld(found: version)) : nil
+        if version.isTooOld {
+            claudeLog.error(
+                "claude \(version.text, privacy: .public) is older than \(ClaudeVersion.minimum.text, privacy: .public)")
+            return .problem(.claudeCodeTooOld(found: version))
+        }
+        claudeLog.info("claude \(version.text, privacy: .public) is recent enough")
+        return nil
     }
 }
