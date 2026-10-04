@@ -28,8 +28,10 @@ public nonisolated struct MenuBarDisplay: Equatable, Sendable {
     }
 
     public enum Content: Equatable, Sendable {
-        /// The glyph alone.
-        case glyph
+        /// The glyph alone: before any values, or with the percentage off.
+        /// With the percentage off, the glyph turns red from 90% and dims
+        /// while the values are stale.
+        case glyph(isRed: Bool = false, isDimmed: Bool = false)
         /// The glyph and the menu bar limit's displayed utilization, e.g.
         /// `14%`, in red from 90% and dimmed while the values are stale.
         case percentage(String, isRed: Bool, isDimmed: Bool)
@@ -43,9 +45,9 @@ public nonisolated struct MenuBarDisplay: Equatable, Sendable {
 ///
 /// Colours resolve inside the drawing handler, from the appearance the image
 /// is drawn in, so the menu bar's own appearance decides them. Only the
-/// percentage turns red or dims; the glyph and the triangle keep the
-/// foreground colour. Nonisolated because AppKit may run the handler on any
-/// thread.
+/// element that carries the value turns red or dims: the percentage, or the
+/// glyph with the percentage off. The triangle keeps the foreground colour.
+/// Nonisolated because AppKit may run the handler on any thread.
 public nonisolated func menuBarImage(_ display: MenuBarDisplay) -> NSImage {
     let glyph = NSImage(systemSymbolName: "gauge.with.needle", accessibilityDescription: nil)!
     let glyphSize = glyph.size
@@ -57,15 +59,26 @@ public nonisolated func menuBarImage(_ display: MenuBarDisplay) -> NSImage {
         height: ceil(max(glyphSize.height, trailingSize.height))
     )
 
+    let glyphTint: (isRed: Bool, isDimmed: Bool) = switch display.content {
+    case .glyph(let isRed, let isDimmed): (isRed, isDimmed)
+    case .percentage, .warning: (false, false)
+    }
+
     let image = NSImage(size: size, flipped: false) { rect in
         let foreground = foregroundColor()
-        glyph.withSymbolConfiguration(NSImage.SymbolConfiguration(paletteColors: [foreground]))!.draw(
+        let glyphColor = glyphTint.isRed ? red() : foreground
+        // Dimmed through the drawing's opacity: a palette colour's own alpha
+        // comes out far fainter than 0.4 on a symbol.
+        glyph.withSymbolConfiguration(NSImage.SymbolConfiguration(paletteColors: [glyphColor]))!.draw(
             in: NSRect(
                 x: 0,
                 y: (rect.height - glyphSize.height) / 2,
                 width: glyphSize.width,
                 height: glyphSize.height
-            )
+            ),
+            from: .zero,
+            operation: .sourceOver,
+            fraction: glyphTint.isDimmed ? dimmedAlpha : 1
         )
         trailing?.draw(
             at: NSPoint(x: glyphSize.width + gap, y: (rect.height - trailingSize.height) / 2),
@@ -109,17 +122,22 @@ private nonisolated enum Trailing: Equatable {
     func draw(at origin: NSPoint, foreground: NSColor) {
         switch self {
         case .text(let text, let isRed, let isDimmed):
-            // Resolved here, so red follows the drawing appearance too.
-            var color = isRed ? NSColor.systemRed.usingColorSpace(.sRGB)! : foreground
-            if isDimmed {
-                color = color.withAlphaComponent(0.4)
-            }
+            let color = (isRed ? red() : foreground).withAlphaComponent(isDimmed ? dimmedAlpha : 1)
             (text as NSString).draw(at: origin, withAttributes: [.font: Self.font, .foregroundColor: color])
         case .warning(let triangle):
             triangle.withSymbolConfiguration(NSImage.SymbolConfiguration(paletteColors: [foreground]))!
                 .draw(in: NSRect(origin: origin, size: triangle.size))
         }
     }
+}
+
+/// The opacity of the element that carries the value while it is stale.
+private nonisolated let dimmedAlpha: CGFloat = 0.4
+
+/// The value from 90%. Call it inside the drawing handler, so red follows
+/// the drawing appearance too.
+private nonisolated func red() -> NSColor {
+    NSColor.systemRed.usingColorSpace(.sRGB)!
 }
 
 /// Pure white on a dark menu bar, pure black on a light one. Semantic

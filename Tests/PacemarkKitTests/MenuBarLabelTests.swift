@@ -48,9 +48,36 @@ import Testing
     }
 
     @Test func labelGlyphOnly() {
-        let display = MenuBarDisplay(content: .glyph, accessibilityText: "Pacemark")
+        let display = MenuBarDisplay(content: .glyph(), accessibilityText: "Pacemark")
 
         expectLabelSnapshot(menuBarImage(display))
+    }
+
+    // With the percentage off, from the display of a state: the glyph
+    // carries red and dimming, and ⚠︎ stays.
+
+    @Test func labelPercentageOffPlain() {
+        expectLabelSnapshot(percentageOff(succeeded(at71, at: now)))
+    }
+
+    @Test func labelPercentageOffRed() {
+        expectLabelSnapshot(percentageOff(succeeded(at91, at: now)))
+    }
+
+    @Test func labelPercentageOffDimmed() {
+        expectLabelSnapshot(percentageOff(failed(after: at71, age: 23 * 60)))
+    }
+
+    @Test func labelPercentageOffRedAndDimmed() {
+        expectLabelSnapshot(percentageOff(failed(after: at91, age: 23 * 60)))
+    }
+
+    @Test func labelPercentageOffWarning() {
+        expectLabelSnapshot(percentageOff(ProviderState(lastAttemptAt: now, lastOutcome: .problem(notLoggedIn))))
+    }
+
+    @Test func withThePercentageOffTheImageStillCarriesTheLimitAndItsPercentage() {
+        #expect(percentageOff(succeeded(at71, at: now)).accessibilityDescription == "Session limit 71%")
     }
 
     @Test func imageCarriesTheAccessibilityText() {
@@ -58,4 +85,12 @@ import Testing
 
         #expect(menuBarImage(display).accessibilityDescription == "Session limit 14%")
     }
+}
+
+private let at71 = [session(utilization: 71, resetsAt: "2026-10-04T12:00:00Z")]
+private let at91 = [session(utilization: 91, resetsAt: "2026-10-04T12:00:00Z")]
+
+/// The label image for `state` at `now` with the percentage off.
+private func percentageOff(_ state: ProviderState) -> NSImage {
+    menuBarImage(display(state, settings: Settings(showPercentage: false), now: now).menuBar)
 }

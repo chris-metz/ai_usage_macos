@@ -41,22 +41,31 @@ public nonisolated func display(_ state: ProviderState, settings: Settings, now:
     return Display(
         dropdown: dropdown,
         staleLine: staleAge.map(staleLine),
-        menuBar: menuBarDisplay(state, isStale: staleAge != nil, now: now)
+        menuBar: menuBarDisplay(state, settings: settings, isStale: staleAge != nil, now: now)
     )
 }
 
-/// The menu bar item (§2 States), with the percentage on. The menu bar limit
-/// is the first limit.
-private nonisolated func menuBarDisplay(_ state: ProviderState, isStale: Bool, now: Date) -> MenuBarDisplay {
+/// The menu bar item (§2 States). The menu bar limit is the first limit.
+/// With the percentage off, the glyph carries red and dimming; the
+/// accessibility text still names the limit and its percentage.
+private nonisolated func menuBarDisplay(
+    _ state: ProviderState,
+    settings: Settings,
+    isStale: Bool,
+    now: Date
+) -> MenuBarDisplay {
     if case .problem(let problem) = state.lastOutcome {
         return MenuBarDisplay(content: .warning, accessibilityText: "Pacemark: \(problem.heading)")
     }
     guard let limit = state.limits?.first else {
-        return MenuBarDisplay(content: .glyph, accessibilityText: "Pacemark")
+        return MenuBarDisplay(content: .glyph(), accessibilityText: "Pacemark")
     }
     let shown = limitDisplay(limit, now: now)
+    let isRed = shown.displayedUtilization >= 90
     return MenuBarDisplay(
-        content: .percentage(shown.percentText, isRed: shown.displayedUtilization >= 90, isDimmed: isStale),
+        content: settings.showPercentage
+            ? .percentage(shown.percentText, isRed: isRed, isDimmed: isStale)
+            : .glyph(isRed: isRed, isDimmed: isStale),
         accessibilityText: "\(limit.title) \(shown.percentText)" + (isStale ? ", not up to date" : "")
     )
 }

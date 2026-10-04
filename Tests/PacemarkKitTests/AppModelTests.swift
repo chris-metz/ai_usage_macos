@@ -7,7 +7,7 @@ import Testing
     @Test func showsTheGlyphAloneBeforeTheFirstResult() {
         let model = AppModel(provider: FakeProvider())
 
-        #expect(model.display.menuBar == MenuBarDisplay(content: .glyph, accessibilityText: "Pacemark"))
+        #expect(model.display.menuBar == MenuBarDisplay(content: .glyph(), accessibilityText: "Pacemark"))
     }
 
     @Test func showsTheSessionLimitAfterAQuery() async {
@@ -68,7 +68,7 @@ import Testing
         #expect(model.display == Display(
             dropdown: .noValues,
             staleLine: nil,
-            menuBar: MenuBarDisplay(content: .glyph, accessibilityText: "Pacemark")
+            menuBar: MenuBarDisplay(content: .glyph(), accessibilityText: "Pacemark")
         ))
     }
 

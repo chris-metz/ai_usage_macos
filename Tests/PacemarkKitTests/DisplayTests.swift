@@ -13,7 +13,7 @@ import Testing
         #expect(result == Display(
             dropdown: .loading,
             staleLine: nil,
-            menuBar: MenuBarDisplay(content: .glyph, accessibilityText: "Pacemark")
+            menuBar: MenuBarDisplay(content: .glyph(), accessibilityText: "Pacemark")
         ))
     }
 
@@ -52,7 +52,7 @@ import Testing
         #expect(result == Display(
             dropdown: .noValues,
             staleLine: nil,
-            menuBar: MenuBarDisplay(content: .glyph, accessibilityText: "Pacemark")
+            menuBar: MenuBarDisplay(content: .glyph(), accessibilityText: "Pacemark")
         ))
     }
 
@@ -123,6 +123,42 @@ import Testing
         ))
     }
 
+    @Test func withThePercentageOffTheGlyphCarriesRedAndDimmingAndTheTextStillNamesTheLimit() {
+        let at71 = [session(utilization: 71, resetsAt: "2026-10-04T12:00:00Z")]
+        let at91 = [session(utilization: 91, resetsAt: "2026-10-04T12:00:00Z")]
+        // The rows of §2 States, in order.
+        let rows: [(ProviderState, MenuBarDisplay)] = [
+            (ProviderState(isQuerying: true),
+             MenuBarDisplay(content: .glyph(), accessibilityText: "Pacemark")),
+            (ProviderState(lastAttemptAt: now, lastOutcome: .unavailable, failureStreak: 1),
+             MenuBarDisplay(content: .glyph(), accessibilityText: "Pacemark")),
+            (ProviderState(lastAttemptAt: now, lastOutcome: .problem(notLoggedIn)),
+             MenuBarDisplay(content: .warning, accessibilityText: "Pacemark: Not logged in")),
+            (succeeded(at71, at: now),
+             MenuBarDisplay(content: .glyph(isRed: false, isDimmed: false), accessibilityText: "Session limit 71%")),
+            (succeeded(at91, at: now),
+             MenuBarDisplay(content: .glyph(isRed: true, isDimmed: false), accessibilityText: "Session limit 91%")),
+            (failed(after: at71, age: 23 * 60),
+             MenuBarDisplay(content: .glyph(isRed: false, isDimmed: true),
+                            accessibilityText: "Session limit 71%, not up to date")),
+            (failed(after: at91, age: 23 * 60),
+             MenuBarDisplay(content: .glyph(isRed: true, isDimmed: true),
+                            accessibilityText: "Session limit 91%, not up to date")),
+        ]
+
+        for (state, menuBar) in rows {
+            #expect(display(state, settings: Settings(showPercentage: false), now: now).menuBar == menuBar)
+        }
+    }
+
+    @Test func withThePercentageOffAMenuBarLimitWithNoWindowShowsThePlainGlyph() {
+        let limits = [Limit(id: "session", title: "Session limit", windowLength: 5 * 3600, window: nil)]
+
+        let result = display(succeeded(limits, at: now), settings: Settings(showPercentage: false), now: now)
+
+        #expect(result.menuBar == MenuBarDisplay(content: .glyph(), accessibilityText: "Session limit 0%"))
+    }
+
     /// Ages in seconds and how the stale line says them.
     nonisolated static let ages: [(Int, String)] = [
         (10 * 60 + 1, "10 min"),
@@ -148,12 +184,12 @@ import Testing
 
 /// The state after a temporary error at `now`, with values from a success
 /// `age` seconds earlier.
-private func failed(after limits: [Limit], age: TimeInterval) -> ProviderState {
+func failed(after limits: [Limit], age: TimeInterval) -> ProviderState {
     ProviderState(lastAttemptAt: now, lastOutcome: .unavailable, limits: limits,
                   lastSuccessAt: now.addingTimeInterval(-age), failureStreak: 3)
 }
 
 /// The state after a successful query that finished at `time`.
-private func succeeded(_ limits: [Limit], at time: Date) -> ProviderState {
+func succeeded(_ limits: [Limit], at time: Date) -> ProviderState {
     ProviderState(lastAttemptAt: time, lastOutcome: .success, limits: limits, lastSuccessAt: time)
 }
