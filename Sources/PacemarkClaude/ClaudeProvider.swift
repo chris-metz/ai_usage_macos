@@ -1,8 +1,10 @@
 import Foundation
 import PacemarkKit
+import Synchronization
 
 /// Reads the Claude limits through the installed Claude Code: locate the
-/// binary, run `/usage` isolated, parse its `usage_report` (ADR 0001).
+/// binary, check its version, run `/usage` isolated, parse its
+/// `usage_report` (ADR 0001).
 public nonisolated final class ClaudeProvider: Provider {
     public let id = "claude"
     public let name = "Claude"
@@ -11,10 +13,15 @@ public nonisolated final class ClaudeProvider: Provider {
     private let userName: String
     private let locator: ClaudeLocator
     private let runner: any CommandRunner
+    /// What the provider remembers between queries; never limit values.
+    private let memory = Mutex(Memory())
 
     public convenience init() {
         let home = FileManager.default.homeDirectoryForCurrentUser
-        self.init(homeDirectory: home, userName: NSUserName(), locator: ClaudeLocator(homeDirectory: home), runner: ProcessRunner())
+        let runner = ProcessRunner()
+        self.init(
+            homeDirectory: home, userName: NSUserName(), locator: ClaudeLocator(homeDirectory: home, runner: runner),
+            runner: runner)
     }
 
     init(homeDirectory: URL, userName: String, locator: ClaudeLocator, runner: any CommandRunner) {
@@ -26,12 +33,8 @@ public nonisolated final class ClaudeProvider: Provider {
 
     @concurrent
     public func fetch() async -> FetchResult {
-        // Interim: "not found" gives `unavailable` until it exists.
-        guard let claude = locator.locate() else {
-            claudeLog.error("Found no claude in the known locations")
-            return .unavailable
-        }
-        claudeLog.info("Found claude at \(claude.path(percentEncoded: false), privacy: .public) in a known location")
+        guard let claude = await locate() else { return .problem(.claudeCodeNotFound) }
+        if let settled = await checkVersion(of: claude) { return settled }
 
         guard case .exited(0, let stdout, _)? = await run(usageCommand(claude)) else { return .unavailable }
         switch ClaudeParser.usageReport(from: stdout) {
@@ -111,7 +114,7 @@ public nonisolated final class ClaudeProvider: Provider {
             arguments: arguments,
             // Never CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: it turns rate_limits into null.
             environment: [
-                "HOME": homePath,
+                "HOME": homeDirectory.pathWithoutTrailingSlash,
                 "USER": userName,
                 "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
                 "DISABLE_AUTOUPDATER": "1",
@@ -123,14 +126,84 @@ public nonisolated final class ClaudeProvider: Provider {
         )
     }
 
-    /// The home path without a trailing slash, as a shell would set `HOME`.
-    private var homePath: String {
-        let path = homeDirectory.path(percentEncoded: false)
-        return path.count > 1 && path.hasSuffix("/") ? String(path.dropLast()) : path
-    }
-
     /// The same empty folder every time, so Claude Code only ever sees one.
     private var workingDirectory: URL {
         homeDirectory.appending(path: "Library/Caches/xyz.chrismetz.pacemark/claude-cwd", directoryHint: .isDirectory)
+    }
+}
+
+// MARK: - Steps 1 and 2: locate the binary and check its version
+
+extension ClaudeProvider {
+    /// What the provider remembers between queries. `fetch()` never runs
+    /// concurrently, so reading it, awaiting, then writing it is safe.
+    fileprivate struct Memory {
+        /// The binary found last; searched again once it isn't executable.
+        var claude: URL?
+        /// The last version check that ran to the end, and which binary it
+        /// checked.
+        var versionCheck: (binary: BinaryIdentity, result: FetchResult?)?
+    }
+
+    /// Which file a path runs: `claude update` re-points the native
+    /// installer's symlink, Homebrew and mise change its target, and npm
+    /// changes the file's modification date.
+    fileprivate struct BinaryIdentity: Equatable {
+        /// Symlinks resolved.
+        let path: String
+        let modificationDate: Date?
+
+        init(of url: URL) {
+            let path = url.path(percentEncoded: false)
+            if let resolved = realpath(path, nil) {
+                self.path = String(cString: resolved)
+                free(resolved)
+            } else {
+                self.path = path
+            }
+            modificationDate = (try? FileManager.default.attributesOfItem(atPath: self.path))?[.modificationDate] as? Date
+        }
+    }
+
+    /// The remembered binary while it's still executable, else the result of
+    /// a new search. While nothing is found, every query searches again, so
+    /// a fresh install is picked up.
+    private func locate() async -> URL? {
+        if let claude = memory.withLock(\.claude), ClaudeLocator.isExecutableFile(claude) {
+            return claude
+        }
+        let claude = await locator.locate()
+        memory.withLock { $0.claude = claude }
+        return claude
+    }
+
+    /// The result that ends the query when `claude` is too old or the check
+    /// fails; nil to carry on. A check that ran to the end counts until the
+    /// binary's identity changes; a failed one runs again on the next query.
+    private func checkVersion(of claude: URL) async -> FetchResult? {
+        let binary = BinaryIdentity(of: claude)
+        if let check = memory.withLock(\.versionCheck), check.binary == binary { return check.result }
+        let result = await runVersionCheck(of: claude)
+        if result != .unavailable { memory.withLock { $0.versionCheck = (binary, result) } }
+        return result
+    }
+
+    private func runVersionCheck(of claude: URL) async -> FetchResult? {
+        guard case .exited(0, let stdout, _)? = await run(isolated(claude, arguments: ["--version"])) else {
+            claudeLog.error("The version check failed")
+            return .unavailable
+        }
+        guard let version = ClaudeParser.version(from: stdout) else {
+            let output = String(decoding: stdout.prefix(2048), as: UTF8.self)
+            claudeLog.error("Found no version number in \(output, privacy: .public); carrying on")
+            return nil
+        }
+        if version.isTooOld {
+            claudeLog.error(
+                "claude \(version.text, privacy: .public) is older than \(ClaudeVersion.minimum.text, privacy: .public)")
+            return .problem(.claudeCodeTooOld(found: version))
+        }
+        claudeLog.info("claude \(version.text, privacy: .public) is recent enough")
+        return nil
     }
 }
