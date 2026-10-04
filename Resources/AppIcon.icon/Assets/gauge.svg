@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- Original art, not traced from the SF Symbol gauge.with.needle: a 240° arc
+       of radius 300 around the hub at (512, 584), and the needle at 52°. -->
+  <g fill="none" stroke="#FFFFFF" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M 252.2 734 A 300 300 0 1 1 771.8 734" stroke-width="76"/>
+    <path d="M 512 584 L 642.5 416.9" stroke-width="62"/>
+  </g>
+  <circle cx="512" cy="584" r="66" fill="#FFFFFF"/>
+</svg>

@@ -12,7 +12,8 @@ import Testing
 
     @Test func showsTheSessionLimitAfterAQuery() async {
         let timer = FakeTimer()
-        let model = AppModel(provider: FakeProvider(.limits(claudeLimits)), sleep: { try await timer.sleep($0) })
+        let model = AppModel(provider: FakeProvider(.limits(claudeLimits)), clock: { beforeTheResets },
+                             sleep: { try await timer.sleep($0) })
 
         model.launch()
         _ = await timer.armed()
@@ -33,7 +34,7 @@ import Testing
 
     @Test func utilizationShowsRoundedAndAtMost100Percent() async {
         let resetsAt = Date(timeIntervalSince1970: 1_790_000_000)
-        var time = Date(timeIntervalSince1970: 1_789_990_000)
+        var time = beforeTheResets
         let timer = FakeTimer()
         let model = AppModel(provider: FakeProvider(
             .limits([Limit(id: "session", title: "Session limit", windowLength: 5 * 3600,
@@ -63,7 +64,24 @@ import Testing
 
         #expect(model.now == Date(timeIntervalSince1970: 2_000))
     }
+
+    @Test func theMenuBarShows0PercentOnceTheResetTimeHasPassed() async {
+        var time = beforeTheResets
+        let timer = FakeTimer()
+        let model = AppModel(provider: FakeProvider(.limits(claudeLimits)), clock: { time },
+                             sleep: { try await timer.sleep($0) })
+        model.launch()
+        _ = await timer.armed()
+
+        time = Date(timeIntervalSince1970: 1_790_000_001)
+        model.minuteTick()
+
+        #expect(model.menuBarDisplay == MenuBarDisplay(percentText: "0%", accessibilityText: "Session limit 0%"))
+    }
 }
+
+/// Inside every window of `claudeLimits`.
+let beforeTheResets = Date(timeIntervalSince1970: 1_789_990_000)
 
 /// Like the `usage.stream.jsonl` fixture: session 14%, weekly 36%, Fable 0%.
 let claudeLimits = [

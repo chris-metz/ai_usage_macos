@@ -13,7 +13,8 @@ import os
     public let refreshInterval: TimeInterval
     /// What the model knows about the provider's queries.
     public private(set) var state = ProviderState()
-    /// The time everything renders at.
+    /// The time everything renders at. Set at launch, on every full minute,
+    /// when the dropdown opens and after every query.
     public private(set) var now: Date
 
     @ObservationIgnored private let clock: () -> Date
@@ -44,13 +45,14 @@ import os
     /// The limits of the last successful query, in provider order.
     public var limits: [Limit] { state.limits ?? [] }
 
-    /// What the menu bar item shows: the first limit's percentage, or the
-    /// glyph alone before the first result.
+    /// What the menu bar item shows: the displayed utilization of the menu
+    /// bar limit (for now the first limit), or the glyph alone before the
+    /// first result.
     public var menuBarDisplay: MenuBarDisplay {
         guard let limit = limits.first else {
             return MenuBarDisplay(percentText: nil, accessibilityText: "Pacemark")
         }
-        let percent = percentText(limit)
+        let percent = limitDisplay(limit, now: now).percentText
         return MenuBarDisplay(percentText: percent, accessibilityText: "\(limit.title) \(percent)")
     }
 
@@ -186,14 +188,4 @@ private nonisolated func describe(_ result: FetchResult) -> String {
     case .unavailable: "unavailable"
     case .problem(let problem): "problem \"\(problem.heading)\""
     }
-}
-
-/// The limit's displayed utilization, e.g. `14%`: rounded to a whole
-/// number, at most 100, and 0 with no window.
-///
-/// Interim: the full rule, including a reset time that has passed, comes
-/// with the limit display (§6.1).
-nonisolated func percentText(_ limit: Limit) -> String {
-    let utilization = min(max(limit.window?.utilization ?? 0, 0), 100)
-    return "\(Int(utilization.rounded()))%"
 }

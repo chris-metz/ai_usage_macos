@@ -16,9 +16,7 @@ struct PacemarkApp: App {
 
     var body: some Scene {
         MenuBarExtra {
-            // MenuBarExtra rebuilds the view on every open.
             DropdownView(model: model)
-                .onAppear { model.dropdownOpened() }
         } label: {
             MenuBarLabel(model: model)
         }
