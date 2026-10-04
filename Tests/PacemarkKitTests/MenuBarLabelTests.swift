@@ -10,4 +10,16 @@ import Testing
 
         expectLabelSnapshot(menuBarImage(display))
     }
+
+    @Test func labelGlyphOnly() {
+        let display = MenuBarDisplay(percentText: nil, accessibilityText: "Pacemark")
+
+        expectLabelSnapshot(menuBarImage(display))
+    }
+
+    @Test func imageCarriesTheAccessibilityText() {
+        let display = MenuBarDisplay(percentText: "14%", accessibilityText: "Session limit 14%")
+
+        #expect(menuBarImage(display).accessibilityDescription == "Session limit 14%")
+    }
 }
