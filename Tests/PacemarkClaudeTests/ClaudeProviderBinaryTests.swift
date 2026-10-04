@@ -43,6 +43,69 @@ import Testing
         )))
         #expect(runner.commands.map(\.executable) == [loginShell])
     }
+
+    @Test func freshInstallIsPickedUpOnTheNextQuery() async throws {
+        let runner = fakeRunner()
+        let provider = provider(runner)
+        #expect(await provider.fetch() == .problem(.claudeCodeNotFound))
+
+        try installClaude("2.1.289", at: home.appending(path: ".local/bin/claude"))
+
+        #expect(await provider.fetch().isLimits)
+    }
+
+    @Test func foundPathIsRememberedWhileItIsExecutable() async throws {
+        let homebrew = root.appending(path: "opt/homebrew/bin/claude")
+        try installClaude("2.1.289", at: homebrew)
+        let runner = fakeRunner()
+        let provider = provider(runner)
+        _ = await provider.fetch()
+
+        // A location that comes first in the search doesn't matter now.
+        try installClaude("2.1.289", at: home.appending(path: ".local/bin/claude"))
+        _ = await provider.fetch()
+
+        #expect(usageRuns(runner) == [homebrew, homebrew])
+    }
+
+    @Test func rememberedPathThatDisappearsTriggersANewSearch() async throws {
+        let homebrew = root.appending(path: "opt/homebrew/bin/claude")
+        let nativeInstall = home.appending(path: ".local/bin/claude")
+        try installClaude("2.1.289", at: homebrew)
+        let runner = fakeRunner()
+        let provider = provider(runner)
+        _ = await provider.fetch()
+        try installClaude("2.1.289", at: nativeInstall)
+
+        try FileManager.default.removeItem(at: homebrew)
+        _ = await provider.fetch()
+
+        #expect(usageRuns(runner) == [homebrew, nativeInstall])
+    }
+
+    @Test func pathFromTheLoginShellIsRemembered() async throws {
+        let volta = home.appending(path: ".volta/bin/claude")
+        try installClaude("2.1.289", at: volta)
+        let runner = fakeRunner(loginShell: "\(volta.path)\n")
+        let provider = provider(runner)
+
+        _ = await provider.fetch()
+        _ = await provider.fetch()
+
+        #expect(usageRuns(runner) == [volta, volta])
+        #expect(runner.commands.filter { $0.executable == loginShell }.count == 1)
+    }
+}
+
+/// The binaries `/usage` ran with, in order.
+private func usageRuns(_ runner: FakeRunner) -> [URL] {
+    runner.commands.filter { $0.arguments.last == "/usage" }.map(\.executable)
+}
+
+extension FetchResult {
+    fileprivate var isLimits: Bool {
+        if case .limits = self { true } else { false }
+    }
 }
 
 /// Never run: a fake runner answers in its place.

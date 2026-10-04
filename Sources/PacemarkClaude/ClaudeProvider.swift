@@ -1,5 +1,6 @@
 import Foundation
 import PacemarkKit
+import Synchronization
 
 /// Reads the Claude limits through the installed Claude Code: locate the
 /// binary, run `/usage` isolated, parse its `usage_report` (ADR 0001).
@@ -11,6 +12,8 @@ public nonisolated final class ClaudeProvider: Provider {
     private let userName: String
     private let locator: ClaudeLocator
     private let runner: any CommandRunner
+    /// What the provider remembers between queries; never limit values.
+    private let memory = Mutex(Memory())
 
     public convenience init() {
         let home = FileManager.default.homeDirectoryForCurrentUser
@@ -31,7 +34,7 @@ public nonisolated final class ClaudeProvider: Provider {
     public func fetch() async -> FetchResult {
         // Interim: "rate_limits: null", the schema problems and the
         // `auth status` step all give `unavailable` until they exist.
-        guard let claude = await locator.locate() else { return .problem(.claudeCodeNotFound) }
+        guard let claude = await locate() else { return .problem(.claudeCodeNotFound) }
 
         guard case .exited(0, let stdout, _)? = await run(usageCommand(claude)) else { return .unavailable }
         switch ClaudeParser.usageReport(from: stdout) {
@@ -105,5 +108,28 @@ public nonisolated final class ClaudeProvider: Provider {
     /// The same empty folder every time, so Claude Code only ever sees one.
     private var workingDirectory: URL {
         homeDirectory.appending(path: "Library/Caches/xyz.chrismetz.pacemark/claude-cwd", directoryHint: .isDirectory)
+    }
+}
+
+// MARK: - Steps 1 and 2: locate the binary and check its version
+
+extension ClaudeProvider {
+    /// What the provider remembers between queries. `fetch()` never runs
+    /// concurrently, so reading it, awaiting, then writing it is safe.
+    fileprivate struct Memory {
+        /// The binary found last; searched again once it isn't executable.
+        var claude: URL?
+    }
+
+    /// The remembered binary while it's still executable, else the result of
+    /// a new search. While nothing is found, every query searches again, so
+    /// a fresh install is picked up.
+    private func locate() async -> URL? {
+        if let claude = memory.withLock(\.claude), ClaudeLocator.isExecutableFile(claude) {
+            return claude
+        }
+        let claude = await locator.locate()
+        memory.withLock { $0.claude = claude }
+        return claude
     }
 }
