@@ -124,7 +124,7 @@ public nonisolated func limitDisplay(
     case .noWindow, .onPace, .underPace: .blue
     }
 
-    let resetLine = resetLine(window.resetsAt, now: now)
+    let resetLine = resetLine(window.resetsAt, now: now, timeZone: timeZone, locale: locale)
     return LimitDisplay(
         title: limit.title,
         state: state,
@@ -140,10 +140,35 @@ public nonisolated func limitDisplay(
     )
 }
 
-/// `Resets in 1 hr 52 min` (§3 Reset line).
-private nonisolated func resetLine(_ resetsAt: Date, now: Date) -> String {
-    let minutes = Int((resetsAt.timeIntervalSince(now) / 60).rounded(.up))
-    return "Resets in \(minutes / 60) hr \(minutes % 60) min"
+/// `Resets in 1 hr 52 min` below a day away, else `Resets Wed 03:00`
+/// (§3 Reset line).
+private nonisolated func resetLine(_ resetsAt: Date, now: Date, timeZone: TimeZone, locale: Locale) -> String {
+    // Claude reports 00:59:59.88 and 01:00:00 for the same reset.
+    let reset = Date(timeIntervalSince1970: (resetsAt.timeIntervalSince1970 / 60).rounded() * 60)
+    let minutes = max(1, Int((reset.timeIntervalSince(now) / 60).rounded(.up)))
+    if minutes >= 24 * 60 {
+        let locale = english(locale)
+        let style = Date.FormatStyle(locale: locale, calendar: locale.calendar, timeZone: timeZone)
+            .weekday(.abbreviated).hour().minute()
+        return "Resets \(reset.formatted(style))"
+    }
+    let (hours, rest) = minutes.quotientAndRemainder(dividingBy: 60)
+    if hours == 0 {
+        return "Resets in \(rest) min"
+    }
+    if rest == 0 {
+        return "Resets in \(hours) hr"
+    }
+    return "Resets in \(hours) hr \(rest) min"
+}
+
+/// `locale` with its language replaced by English, keeping the region and
+/// the hour cycle: `de_DE` gives `en_DE`, which prints `Wed 03:00`.
+private nonisolated func english(_ locale: Locale) -> Locale {
+    var components = Locale.Components(locale: locale)
+    components.languageComponents.languageCode = .english
+    components.languageComponents.script = nil
+    return Locale(components: components)
 }
 
 private nonisolated extension String {

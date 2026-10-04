@@ -189,11 +189,72 @@ import Testing
     }
 }
 
+/// The reset line (§3 Reset line), with `now` on a full minute unless a
+/// test says otherwise.
+@Suite struct ResetLineTests {
+    @Test(arguments: [
+        ("2026-10-04T10:08:30Z", "Resets in 1 min"),
+        ("2026-10-04T11:00:00Z", "Resets in 52 min"),
+        ("2026-10-04T11:07:30Z", "Resets in 1 hr"),
+        ("2026-10-04T12:00:00Z", "Resets in 1 hr 52 min"),
+        ("2026-10-04T12:08:00Z", "Resets in 2 hr"),
+        ("2026-10-05T10:07:00Z", "Resets in 23 hr 59 min"),
+        ("2026-10-05T10:08:00Z", "Resets Mon 12:08"),
+    ])
+    func belowADayAwayItCountsDown(resetsAt: String, resetLine: String) {
+        #expect(resetLineOf(weekly(utilization: 10, resetsAt: resetsAt), at: now) == resetLine)
+    }
+
+    @Test func theCountdownRoundsUp() {
+        let now = date("2026-10-04T10:08:20Z")
+
+        #expect(resetLineOf(session(utilization: 10, resetsAt: "2026-10-04T12:00:00Z"), at: now)
+            == "Resets in 1 hr 52 min")
+    }
+
+    @Test func aResetTimeThatRoundsToBeforeNowShows1Min() {
+        let now = date("2026-10-04T10:08:20Z")
+
+        #expect(resetLineOf(session(utilization: 10, resetsAt: "2026-10-04T10:08:25Z"), at: now)
+            == "Resets in 1 min")
+    }
+
+    @Test func theResetTimeRoundsToTheNearestMinuteFirst() {
+        let limit = weekly(utilization: 10, resetsAt: "2026-10-07T00:59:59.880Z")
+
+        #expect(resetLineOf(limit, at: now) == "Resets Wed 03:00")
+    }
+
+    @Test(arguments: [
+        ("en_DE", "Resets Wed 03:00"),
+        ("de_DE", "Resets Wed 03:00"),
+        // The formatter puts a narrow no-break space before AM.
+        ("en_US", "Resets Wed 3:00\u{202F}AM"),
+        ("en_US@hours=h23", "Resets Wed 03:00"),
+    ])
+    func theWeekdayFormIsEnglishWithTheRegionAndHourCycleOfTheLocale(locale: String, resetLine: String) {
+        let limit = weekly(utilization: 10, resetsAt: "2026-10-07T01:00:00Z")
+
+        #expect(resetLineOf(limit, at: now, locale: Locale(identifier: locale)) == resetLine)
+    }
+
+    @Test func theWeekdayFormUsesTheTimeZone() {
+        let limit = weekly(utilization: 10, resetsAt: "2026-10-07T01:00:00Z")
+
+        let display = limitDisplay(limit, now: now, timeZone: TimeZone(identifier: "America/New_York")!, locale: enDE)
+
+        #expect(display.resetLine == "Resets Tue 21:00")
+    }
+
+    private func resetLineOf(_ limit: Limit, at now: Date, locale: Locale = enDE) -> String {
+        limitDisplay(limit, now: now, timeZone: berlin, locale: locale).resetLine
+    }
+}
+
 /// Sunday, 4 Oct 2026, 12:08 in Berlin.
 let now = date("2026-10-04T10:08:00Z")
 let berlin = TimeZone(identifier: "Europe/Berlin")!
 let enDE = Locale(identifier: "en_DE")
-let enUS = Locale(identifier: "en_US")
 
 func date(_ iso8601: String) -> Date {
     try! Date(iso8601, strategy: Date.ISO8601FormatStyle(includingFractionalSeconds: iso8601.contains(".")))
