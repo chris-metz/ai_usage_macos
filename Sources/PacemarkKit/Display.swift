@@ -74,13 +74,13 @@ private nonisolated func menuBarDisplay(
     guard let limit = picked ?? limits.first else {
         return MenuBarDisplay(content: .glyph(), accessibilityText: "Pacemark")
     }
-    let shown = limitDisplay(limit, now: now)
-    let isRed = shown.state.isRed
+    let menuBarLimitDisplay = limitDisplay(limit, now: now)
+    let isRed = menuBarLimitDisplay.state.isRed
     return MenuBarDisplay(
         content: settings.showPercentage
-            ? .percentage(shown.percentText, isRed: isRed, isDimmed: isStale)
+            ? .percentage(menuBarLimitDisplay.percentText, isRed: isRed, isDimmed: isStale)
             : .glyph(isRed: isRed, isDimmed: isStale),
-        accessibilityText: "\(limit.title) \(shown.percentText)" + (isStale ? ", not up to date" : "")
+        accessibilityText: "\(limit.title) \(menuBarLimitDisplay.percentText)" + (isStale ? ", not up to date" : "")
     )
 }
 

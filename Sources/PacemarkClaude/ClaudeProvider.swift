@@ -13,8 +13,9 @@ public nonisolated final class ClaudeProvider: Provider {
     private let userName: String
     private let locator: ClaudeLocator
     private let runner: any CommandRunner
-    /// What the provider remembers between queries; never limit values.
-    private let memory = Mutex(Memory())
+    /// The found binary and its version check, kept between queries;
+    /// never limit values.
+    private let binaryCache = Mutex(BinaryCache())
 
     public convenience init() {
         let home = FileManager.default.homeDirectoryForCurrentUser
@@ -118,9 +119,10 @@ public nonisolated final class ClaudeProvider: Provider {
 // MARK: - Steps 1 and 2: locate the binary and check its version
 
 extension ClaudeProvider {
-    /// What the provider remembers between queries. `fetch()` never runs
-    /// concurrently, so reading it, awaiting, then writing it is safe.
-    fileprivate struct Memory {
+    /// The found binary and its version check, kept between queries.
+    /// `fetch()` never runs concurrently, so reading it, awaiting, then
+    /// writing it is safe.
+    fileprivate struct BinaryCache {
         /// The binary found last; searched again once it isn't executable.
         var claude: URL?
         /// The last version check that ran to the end, and which binary it
@@ -152,11 +154,11 @@ extension ClaudeProvider {
     /// a new search. While nothing is found, every query searches again, so
     /// a fresh install is picked up.
     private func locate() async -> URL? {
-        if let claude = memory.withLock(\.claude), ClaudeLocator.isExecutableFile(claude) {
+        if let claude = binaryCache.withLock(\.claude), ClaudeLocator.isExecutableFile(claude) {
             return claude
         }
         let claude = await locator.locate()
-        memory.withLock { $0.claude = claude }
+        binaryCache.withLock { $0.claude = claude }
         return claude
     }
 
@@ -165,9 +167,9 @@ extension ClaudeProvider {
     /// binary's identity changes; a failed one runs again on the next query.
     private func checkVersion(of claude: URL) async -> FetchResult? {
         let binary = BinaryIdentity(of: claude)
-        if let check = memory.withLock(\.versionCheck), check.binary == binary { return check.result }
+        if let check = binaryCache.withLock(\.versionCheck), check.binary == binary { return check.result }
         let result = await runVersionCheck(of: claude)
-        if result != .unavailable { memory.withLock { $0.versionCheck = (binary, result) } }
+        if result != .unavailable { binaryCache.withLock { $0.versionCheck = (binary, result) } }
         return result
     }
 
