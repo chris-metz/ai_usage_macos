@@ -51,10 +51,83 @@ private let sevenDays: TimeInterval = 7 * 24 * 60 * 60
         #expect(limits.map(\.id) == ["session", "weekly", "model:Fable"])
     }
 
+    @Test func nullPercentIsNoWindowEvenWithAResetTime() throws {
+        let limits = try parsedLimits("variant-percent-null.stream.jsonl")
+
+        #expect(limits.map(\.id) == ["session", "weekly", "model:Fable"])
+        #expect(limits[1] == Limit(id: "weekly", title: "Weekly limit", windowLength: sevenDays, window: nil))
+        #expect(limits[0].window?.utilization == 14)
+    }
+
+    @Test func resetTimeWithoutFractionalSecondsParses() throws {
+        let limits = try parsedLimits("variant-no-fractional-seconds.stream.jsonl")
+
+        expectDate(limits[0].window?.resetsAt, near: 1_791_025_800)  // 2026-10-03T11:10:00Z
+    }
+
+    @Test func utilizationAbove100IsKeptAsDelivered() throws {
+        let limits = try parsedLimits("variant-percent-over-100.stream.jsonl")
+
+        #expect(limits[0].window?.utilization == 140)
+    }
+
+    @Test func repeatedModelNameIsIgnoredAfterItsFirstRow() throws {
+        let limits = try parsedLimits("variant-repeated-model.stream.jsonl")
+
+        #expect(limits.map(\.id) == ["session", "weekly", "model:Fable"])
+        #expect(limits[2].window?.utilization == 0)
+    }
+
+    @Test func malformedLinesAreSkipped() throws {
+        let limits = try parsedLimits("variant-malformed-lines.stream.jsonl")
+
+        #expect(limits.map(\.id) == ["session", "weekly", "model:Fable"])
+        #expect(limits.map(\.window?.utilization) == [14, 36, 0])
+    }
+
+    @Test func nullRateLimitsAreReportedAsSuch() throws {
+        let report = ClaudeParser.usageReport(from: try Fixtures.data("variant-rate-limits-null.stream.jsonl"))
+
+        #expect(report == .rateLimitsNull)
+    }
+
     @Test func loggedOutOutputHasNoReport() throws {
         let report = ClaudeParser.usageReport(from: try Fixtures.data("usage-logged-out.stream.jsonl"))
 
         #expect(report == .missing)
+    }
+
+    /// A renamed `kind` must not look like "no window".
+    @Test(arguments: ["variant-wrong-type.stream.jsonl", "variant-no-recognised-row.stream.jsonl"])
+    func schemaMismatchIsUnexpected(fixture: String) throws {
+        expectUnexpected(ClaudeParser.usageReport(from: try Fixtures.data(fixture)))
+    }
+
+    /// Each line breaks one schema rule of the report and is valid otherwise.
+    @Test(arguments: [
+        #"{"type":"assistant","usage_report":"report"}"#,
+        #"{"type":"assistant","usage_report":{}}"#,
+        #"{"type":"assistant","usage_report":{"rate_limits":[]}}"#,
+        #"{"type":"assistant","usage_report":{"rate_limits":{}}}"#,
+        #"{"type":"assistant","usage_report":{"rate_limits":{"limits":{}}}}"#,
+        #"{"type":"assistant","usage_report":{"rate_limits":{"limits":[]}}}"#,
+        #"{"type":"assistant","usage_report":{"rate_limits":{"limits":["session"]}}}"#,
+        #"{"type":"assistant","usage_report":{"rate_limits":{"limits":[{"kind":"session","percent":true,"resets_at":null}]}}}"#,
+        #"{"type":"assistant","usage_report":{"rate_limits":{"limits":[{"kind":"weekly_all","percent":36,"resets_at":1791334799}]}}}"#,
+        #"{"type":"assistant","usage_report":{"rate_limits":{"limits":[{"kind":"weekly_all","percent":36,"resets_at":"Oct 7 at 3am"}]}}}"#,
+        #"{"type":"assistant","usage_report":{"rate_limits":{"limits":[{"kind":"weekly_scoped","percent":0,"resets_at":null,"scope":{"model":{}}}]}}}"#,
+        #"{"type":"assistant","usage_report":{"rate_limits":{"limits":[{"kind":"weekly_scoped","percent":0,"resets_at":null,"scope":{"model":{"display_name":""}}}]}}}"#,
+        #"{"type":"assistant","usage_report":{"rate_limits":{"limits":[{"kind":"weekly_scoped","percent":0,"resets_at":null,"scope":{"model":"Fable"}}]}}}"#,
+    ])
+    func brokenSchemaRuleIsUnexpected(line: String) {
+        expectUnexpected(ClaudeParser.usageReport(from: Data(line.utf8)))
+    }
+}
+
+private func expectUnexpected(_ report: UsageReport, sourceLocation: SourceLocation = #_sourceLocation) {
+    guard case .unexpected = report else {
+        Issue.record("expected an unexpected response, got \(report)", sourceLocation: sourceLocation)
+        return
     }
 }
 
