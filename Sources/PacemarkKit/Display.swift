@@ -75,7 +75,7 @@ private nonisolated func menuBarDisplay(
         return MenuBarDisplay(content: .glyph(), accessibilityText: "Pacemark")
     }
     let shown = limitDisplay(limit, now: now)
-    let isRed = shown.displayedUtilization >= 90
+    let isRed = shown.state.isRed
     return MenuBarDisplay(
         content: settings.showPercentage
             ? .percentage(shown.percentText, isRed: isRed, isDimmed: isStale)

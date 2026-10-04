@@ -59,6 +59,12 @@ public nonisolated enum LimitState: Equatable, Sendable {
     case overPace
     case onPace
     case underPace
+
+    /// Exhausted or High, from 90%: the bar and the menu bar value show in
+    /// red.
+    public var isRed: Bool {
+        self == .exhausted || self == .high
+    }
 }
 
 /// The colours a row uses; the view maps them to the macOS system colours.
