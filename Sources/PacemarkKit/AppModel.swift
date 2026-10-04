@@ -2,21 +2,33 @@ import Foundation
 import Observation
 import os
 
-/// The app's state: the provider, its query state and the current time.
-/// The menu bar item and the dropdown render from it.
+/// The app's state: the provider, its query state, the settings and the
+/// current time. The menu bar item, the dropdown and the settings window
+/// render from it.
 ///
 /// Events come in as methods; the model decides when to query (§6.2) and
 /// keeps one timer task for the next scheduled query.
 @Observable public final class AppModel {
     public let provider: any Provider
-    /// How long after the last attempt the next query runs.
-    public let refreshInterval: TimeInterval
+    /// The user's settings, written through to the store on every change.
+    /// A new refresh interval counts from the last attempt, so if that time
+    /// has passed, the query runs now (§6.2).
+    public var settings: Settings {
+        didSet {
+            settingsStore?.save(settings)
+            if settings.refreshIntervalMinutes != oldValue.refreshIntervalMinutes {
+                appLog.info("Refresh interval changed to \(self.settings.refreshIntervalMinutes, privacy: .public) min")
+                schedule()
+            }
+        }
+    }
     /// What the model knows about the provider's queries.
     public private(set) var state = ProviderState()
     /// The time everything renders at. Set at launch, on every full minute,
     /// when the dropdown opens and after every query.
     public private(set) var now: Date
 
+    @ObservationIgnored private let settingsStore: SettingsStore?
     @ObservationIgnored private let clock: () -> Date
     @ObservationIgnored private let sleep: @Sendable (TimeInterval) async throws -> Void
     @ObservationIgnored private var timer: Task<Void, Never>?
@@ -27,26 +39,28 @@ import os
     @ObservationIgnored private var wakeDeadline: Date?
 
     /// - Parameters:
+    ///   - settingsStore: Where the settings come from and go to; without
+    ///     one, the model starts with the defaults and keeps changes to
+    ///     itself.
     ///   - clock: The current time.
     ///   - sleep: Waits the given number of seconds; throws when cancelled.
     public init(
         provider: any Provider,
-        refreshInterval: TimeInterval = 5 * 60,
+        settingsStore: SettingsStore? = nil,
         clock: @escaping () -> Date = { Date() },
         sleep: @escaping @Sendable (TimeInterval) async throws -> Void = { try await Task.sleep(for: .seconds($0)) }
     ) {
         self.provider = provider
-        self.refreshInterval = refreshInterval
+        self.settingsStore = settingsStore
+        settings = settingsStore?.load() ?? Settings()
         self.clock = clock
         self.sleep = sleep
         now = clock()
     }
 
-    /// What the menu bar item and the dropdown show at `now` (§6.3). The
-    /// model holds no settings yet; of them, `display` reads only the refresh
-    /// interval.
+    /// What the menu bar item and the dropdown show at `now` (§6.3).
     public var display: Display {
-        PacemarkKit.display(state, settings: Settings(refreshIntervalMinutes: Int(refreshInterval / 60)), now: now)
+        PacemarkKit.display(state, settings: settings, now: now)
     }
 
     // MARK: Events
@@ -102,7 +116,7 @@ import os
         timer = nil
         guard !state.isQuerying else { return }
         let now = clock()
-        var next = nextQueryAt(state, interval: refreshInterval, now: now)
+        var next = nextQueryAt(state, interval: settings.refreshInterval, now: now)
         if let wakeDeadline {
             next = min(next, wakeDeadline)
         }

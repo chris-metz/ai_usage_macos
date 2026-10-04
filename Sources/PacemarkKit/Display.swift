@@ -31,7 +31,7 @@ public nonisolated enum DropdownContent: Equatable, Sendable {
 /// What the menu bar item and the dropdown show for `state` at `now`
 /// (§6.3).
 public nonisolated func display(_ state: ProviderState, settings: Settings, now: Date) -> Display {
-    let staleAge = staleAge(state, interval: TimeInterval(settings.refreshIntervalMinutes * 60), now: now)
+    let staleAge = staleAge(state, interval: settings.refreshInterval, now: now)
     let dropdown: DropdownContent = switch (state.lastOutcome, state.limits) {
     case (nil, _): .loading
     case (.problem(let problem)?, _): .problem(problem)

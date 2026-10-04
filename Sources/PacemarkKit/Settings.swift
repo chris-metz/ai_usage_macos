@@ -1,19 +1,22 @@
 import Foundation
 
-/// The user's choices (§6.5), each with its default. The store reads and
-/// writes them; this type knows nothing about storage.
+/// The user's settings (§6.5), each with its default. Limits are named by
+/// their qualified id, `{provider.id}/{limit.id}`, e.g. `claude/session`.
 public nonisolated struct Settings: Equatable, Sendable {
-    /// How often Pacemark queries: 5, 10 or 15 minutes.
+    /// How often the app queries: 5, 10 or 15 minutes.
     public var refreshIntervalMinutes: Int
-    /// The menu bar item shows the menu bar limit's percentage.
+    /// The menu bar item shows the percentage next to the glyph.
     public var showPercentage: Bool
-    /// Qualified ids of the limits hidden in the dropdown, e.g.
-    /// `claude/model:Fable`.
+    /// Qualified ids of the limits the dropdown hides. Only these are
+    /// remembered, so a new model limit shows.
     public var hiddenLimits: [String]
     /// Qualified id of the menu bar limit; nil means the first limit.
     public var menuBarLimitID: String?
     /// The menu bar limit's title when it was picked, for `(not available)`.
     public var menuBarLimitTitle: String?
+
+    /// The refresh interval choices, in minutes.
+    public static let refreshIntervalChoices = [5, 10, 15]
 
     public init(
         refreshIntervalMinutes: Int = 5,
@@ -27,5 +30,10 @@ public nonisolated struct Settings: Equatable, Sendable {
         self.hiddenLimits = hiddenLimits
         self.menuBarLimitID = menuBarLimitID
         self.menuBarLimitTitle = menuBarLimitTitle
+    }
+
+    /// The refresh interval in seconds.
+    public var refreshInterval: TimeInterval {
+        TimeInterval(refreshIntervalMinutes * 60)
     }
 }

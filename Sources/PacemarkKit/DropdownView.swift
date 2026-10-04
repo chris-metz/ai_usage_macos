@@ -2,13 +2,17 @@ import AppKit
 import SwiftUI
 
 /// The content of the menu bar item's window (§3): the limit rows or what
-/// stands in for them, and a footer with the stale line and Quit. Its state
-/// lives in the model, because `MenuBarExtra` discards view state on close.
+/// stands in for them, and a footer with the stale line, Settings… and Quit.
+/// Its state lives in the model, because `MenuBarExtra` discards view state
+/// on close.
 public struct DropdownView: View {
     let model: AppModel
 
     @Environment(\.timeZone) private var timeZone
     @Environment(\.locale) private var locale
+    @Environment(\.openWindow) private var openWindow
+    /// Closes the dropdown.
+    @Environment(\.dismiss) private var dismiss
 
     public init(model: AppModel) {
         self.model = model
@@ -59,6 +63,11 @@ public struct DropdownView: View {
             }
             HStack {
                 Spacer()
+                Button("Settings…") {
+                    dismiss()
+                    openWindow.openSettings()
+                }
+                .keyboardShortcut(",")
                 Button("Quit") {
                     NSApplication.shared.terminate(nil)
                 }
