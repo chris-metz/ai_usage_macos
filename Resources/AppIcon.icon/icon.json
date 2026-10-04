@@ -1,0 +1,20 @@
+{
+  "fill" : {
+    "solid" : "srgb:0.26275,0.31765,0.78039,1.00000"
+  },
+  "groups" : [
+    {
+      "layers" : [
+        {
+          "image-name" : "gauge.svg",
+          "name" : "gauge"
+        }
+      ]
+    }
+  ],
+  "supported-platforms" : {
+    "squares" : [
+      "macOS"
+    ]
+  }
+}
