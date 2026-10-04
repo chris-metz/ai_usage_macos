@@ -24,7 +24,9 @@ import Testing
         ClaudeProvider(
             homeDirectory: home,
             userName: "tester",
-            locator: ClaudeLocator(homeDirectory: home, rootDirectory: directory.url.appending(path: "root")),
+            locator: ClaudeLocator(
+                homeDirectory: home, rootDirectory: directory.url.appending(path: "root"), userName: "tester",
+                loginShell: URL(filePath: "/nonexistent/login-shell"), runner: runner),
             runner: runner
         )
     }
@@ -97,15 +99,6 @@ import Testing
         let runner = FakeRunner { _ in throw CocoaError(.executableNotLoadable) }
 
         #expect(await provider(runner).fetch() == .unavailable)
-    }
-
-    /// Interim until the "Claude Code not found" problem exists.
-    @Test func missingClaudeIsUnavailableForNow() async throws {
-        try FileManager.default.removeItem(at: claude)
-        let runner = FakeRunner { _ in .exited(status: 0, stdout: try Fixtures.data("usage.stream.jsonl"), stderr: Data()) }
-
-        #expect(await provider(runner).fetch() == .unavailable)
-        #expect(runner.commands.isEmpty)
     }
 
     /// Interim until the `auth status` step exists.

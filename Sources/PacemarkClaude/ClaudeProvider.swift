@@ -14,7 +14,10 @@ public nonisolated final class ClaudeProvider: Provider {
 
     public convenience init() {
         let home = FileManager.default.homeDirectoryForCurrentUser
-        self.init(homeDirectory: home, userName: NSUserName(), locator: ClaudeLocator(homeDirectory: home), runner: ProcessRunner())
+        let runner = ProcessRunner()
+        self.init(
+            homeDirectory: home, userName: NSUserName(), locator: ClaudeLocator(homeDirectory: home, runner: runner),
+            runner: runner)
     }
 
     init(homeDirectory: URL, userName: String, locator: ClaudeLocator, runner: any CommandRunner) {
@@ -26,13 +29,9 @@ public nonisolated final class ClaudeProvider: Provider {
 
     @concurrent
     public func fetch() async -> FetchResult {
-        // Interim: "not found", "rate_limits: null", the schema problems and
-        // the `auth status` step all give `unavailable` until they exist.
-        guard let claude = locator.locate() else {
-            claudeLog.error("Found no claude in the known locations")
-            return .unavailable
-        }
-        claudeLog.info("Found claude at \(claude.path(percentEncoded: false), privacy: .public) in a known location")
+        // Interim: "rate_limits: null", the schema problems and the
+        // `auth status` step all give `unavailable` until they exist.
+        guard let claude = await locator.locate() else { return .problem(.claudeCodeNotFound) }
 
         guard case .exited(0, let stdout, _)? = await run(usageCommand(claude)) else { return .unavailable }
         switch ClaudeParser.usageReport(from: stdout) {
@@ -91,7 +90,7 @@ public nonisolated final class ClaudeProvider: Provider {
             arguments: arguments,
             // Never CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: it turns rate_limits into null.
             environment: [
-                "HOME": homePath,
+                "HOME": homeDirectory.pathWithoutTrailingSlash,
                 "USER": userName,
                 "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
                 "DISABLE_AUTOUPDATER": "1",
@@ -101,12 +100,6 @@ public nonisolated final class ClaudeProvider: Provider {
             standardInput: URL(filePath: "/dev/null"),
             timeout: .seconds(30)
         )
-    }
-
-    /// The home path without a trailing slash, as a shell would set `HOME`.
-    private var homePath: String {
-        let path = homeDirectory.path(percentEncoded: false)
-        return path.count > 1 && path.hasSuffix("/") ? String(path.dropLast()) : path
     }
 
     /// The same empty folder every time, so Claude Code only ever sees one.
