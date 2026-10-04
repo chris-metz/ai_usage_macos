@@ -71,10 +71,7 @@ public struct DropdownView: View {
                     openWindow.openSettings()
                 }
                 .keyboardShortcut(",")
-                Button("Quit") {
-                    NSApplication.shared.terminate(nil)
-                }
-                .keyboardShortcut("q")
+                QuitButton("Quit")
             }
             .buttonStyle(.borderless)
             .foregroundStyle(.secondary)

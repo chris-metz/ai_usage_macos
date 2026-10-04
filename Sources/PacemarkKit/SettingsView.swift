@@ -38,12 +38,9 @@ public struct SettingsView: View {
                 HStack {
                     Text(verbatim: version)
                     Text(verbatim: "·")
-                    Link("GitHub", destination: URL(string: "https://github.com/chris-metz/pacemark")!)
+                    Link("GitHub", destination: repositoryURL)
                     Spacer()
-                    Button("Quit Pacemark") {
-                        NSApplication.shared.terminate(nil)
-                    }
-                    .keyboardShortcut("q")
+                    QuitButton("Quit Pacemark")
                 }
             }
         }
