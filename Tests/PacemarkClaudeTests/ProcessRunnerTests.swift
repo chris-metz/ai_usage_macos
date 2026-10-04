@@ -90,6 +90,57 @@ import Testing
         #expect(elapsed >= .milliseconds(700))
         #expect(elapsed < .seconds(5))
     }
+
+    /// The signals go to the child's whole process group, so they also end
+    /// what the child started.
+    @Test func timeoutEndsWhatTheChildStarted() async throws {
+        let directory = try TemporaryDirectory()
+        let pidFile = directory.url.appending(path: "pid")
+        let clock = ContinuousClock()
+        let start = clock.now
+        let result = try await ProcessRunner().run(
+            command(
+                "/bin/sh", "-c", "/bin/sleep 30 & echo $! > '\(pidFile.path(percentEncoded: false))'; wait",
+                timeout: .milliseconds(500)
+            )
+        )
+
+        #expect(result == .timedOut)
+        #expect(clock.now - start < .seconds(1.5))
+        let pid = try #require(pid_t(String(decoding: try Data(contentsOf: pidFile), as: UTF8.self).trimmingCharacters(in: .newlines)))
+        #expect(await ends(pid))
+    }
+
+    /// A process the child leaves behind may keep stdout open long after the
+    /// child exited. The run still returns soon, with the child's output,
+    /// and ends that process.
+    @Test func exitReturnsWhileWhatTheChildStartedHoldsTheOutputOpen() async throws {
+        let clock = ContinuousClock()
+        let start = clock.now
+        let result = try await ProcessRunner().run(command("/bin/sh", "-c", "/bin/sleep 30 & echo $!"))
+
+        #expect(clock.now - start < .seconds(5))
+        guard case .exited(0, let stdout, let stderr) = result,
+            let pid = pid_t(String(decoding: stdout, as: UTF8.self).trimmingCharacters(in: .newlines))
+        else {
+            Issue.record("expected an exit with a pid on stdout, got \(result)")
+            return
+        }
+        #expect(stderr.isEmpty)
+        #expect(await ends(pid))
+    }
+}
+
+/// Whether process `pid` is gone within `limit`. One still running then is
+/// killed, so a failing test leaves nothing behind.
+private func ends(_ pid: pid_t, within limit: Duration = .seconds(2)) async -> Bool {
+    let deadline = ContinuousClock.now + limit
+    while ContinuousClock.now < deadline {
+        if kill(pid, 0) != 0, errno == ESRCH { return true }
+        try? await Task.sleep(for: .milliseconds(20))
+    }
+    kill(pid, SIGKILL)
+    return false
 }
 
 /// A command with an empty environment, the temp directory, stdin

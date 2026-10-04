@@ -31,6 +31,28 @@ public nonisolated struct ProviderState: Equatable, Sendable {
         self.failureStreak = failureStreak
         self.isQuerying = isQuerying
     }
+
+    /// Records how the running query ended (§6.4): a success stores the
+    /// limits, a temporary error keeps them and raises the failure streak,
+    /// a problem clears them.
+    public mutating func record(_ result: FetchResult, finishedAt: Date) {
+        isQuerying = false
+        lastAttemptAt = finishedAt
+        switch result {
+        case .limits(let limits):
+            self.limits = limits
+            lastSuccessAt = finishedAt
+            lastOutcome = .success
+            failureStreak = 0
+        case .unavailable:
+            lastOutcome = .unavailable
+            failureStreak += 1
+        case .problem(let problem):
+            limits = nil
+            lastOutcome = .problem(problem)
+            failureStreak = 0
+        }
+    }
 }
 
 /// How a query ended.
@@ -51,8 +73,8 @@ public nonisolated func nextQueryAt(_ state: ProviderState, interval: TimeInterv
     case 2: 2 * 60
     default: interval
     }
-    // Every limit, also one the dropdown hides. The 65 s get past Claude
-    // Code's own 60 s snapshot.
+    // Every limit, also one the dropdown hides. The 65 s get past the
+    // provider's own 60 s snapshot (§6.2).
     let afterResets = (state.limits ?? [])
         .compactMap { $0.window?.resetsAt.addingTimeInterval(65) }
         .filter { $0 > lastAttemptAt }

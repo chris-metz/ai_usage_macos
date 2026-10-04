@@ -65,21 +65,24 @@ import os
 
     // MARK: Settings window
 
-    /// How the settings name `limit`, one of this provider's.
-    public func qualifiedID(of limit: Limit) -> String {
-        limit.qualifiedID(providerID: provider.id)
+    /// What the settings window's `Limit` picker offers and selects (§4).
+    public var menuBarLimitPicker: MenuBarLimitPicker {
+        PacemarkKit.menuBarLimitPicker(limits: state.limits, providerID: provider.id, settings: settings)
     }
 
-    /// Makes `limit` the menu bar limit: stores its qualified id, and its
-    /// title for when it goes missing (`(not available)`).
-    public func pickMenuBarLimit(_ limit: Limit) {
-        settings.menuBarLimitID = qualifiedID(of: limit)
+    /// Makes the current limit with the qualified id `id` the menu bar
+    /// limit: stores the id, and the title for when it goes missing
+    /// (`(not available)`). An id of no current limit, such as the
+    /// `(not available)` entry's, changes nothing.
+    public func pickMenuBarLimit(id: String) {
+        guard let limit = state.limits?.first(where: { qualifiedID(of: $0) == id }) else { return }
+        settings.menuBarLimitID = id
         settings.menuBarLimitTitle = limit.title
     }
 
     /// Whether the dropdown shows `limit`.
     public func isLimitShownInDropdown(_ limit: Limit) -> Bool {
-        !settings.hiddenLimits.contains(qualifiedID(of: limit))
+        settings.isLimitShownInDropdown(limit, providerID: provider.id)
     }
 
     /// Shows or hides `limit` in the dropdown. Other stored hidden limits
@@ -91,6 +94,11 @@ import os
         } else if !settings.hiddenLimits.contains(id) {
             settings.hiddenLimits.append(id)
         }
+    }
+
+    /// How the settings name `limit`, one of this provider's.
+    private func qualifiedID(of limit: Limit) -> String {
+        limit.qualifiedID(providerID: provider.id)
     }
 
     // MARK: Events
@@ -187,22 +195,7 @@ import os
     /// Records the result (§6.4) and recomputes the next time.
     private func finish(_ result: FetchResult, startedAt: Date) {
         let finishedAt = clock()
-        state.isQuerying = false
-        state.lastAttemptAt = finishedAt
-        switch result {
-        case .limits(let limits):
-            state.limits = limits
-            state.lastSuccessAt = finishedAt
-            state.lastOutcome = .success
-            state.failureStreak = 0
-        case .unavailable:
-            state.lastOutcome = .unavailable
-            state.failureStreak += 1
-        case .problem(let problem):
-            state.limits = nil
-            state.lastOutcome = .problem(problem)
-            state.failureStreak = 0
-        }
+        state.record(result, finishedAt: finishedAt)
         now = finishedAt
         let seconds = finishedAt.timeIntervalSince(startedAt)
         appLog.info("Query finished after \(seconds, format: .fixed(precision: 1), privacy: .public) s: \(describe(result), privacy: .public)")

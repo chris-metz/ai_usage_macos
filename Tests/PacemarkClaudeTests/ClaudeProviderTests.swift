@@ -27,22 +27,13 @@ private let unexpectedResponse = Problem(
         directory = try TemporaryDirectory()
         home = URL(filePath: directory.path + "/home", directoryHint: .isDirectory)
         claude = home.appending(path: ".local/bin/claude")
-        try FileManager.default.createDirectory(at: claude.deletingLastPathComponent(), withIntermediateDirectories: true)
-        try Data("#!/bin/sh\nexit 1\n".utf8).write(to: claude)
-        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: claude.path(percentEncoded: false))
+        try makeExecutable(at: claude)
     }
 
     /// A provider whose `claude` passes the version check, so `runner` only
     /// sees the steps after it. `ClaudeProviderBinaryTests` covers the check.
     func provider(_ runner: FakeRunner) -> ClaudeProvider {
-        ClaudeProvider(
-            homeDirectory: home,
-            userName: "tester",
-            locator: ClaudeLocator(
-                homeDirectory: home, rootDirectory: directory.url.appending(path: "root"), userName: "tester",
-                loginShell: URL(filePath: "/nonexistent/login-shell"), runner: runner),
-            runner: CurrentVersionRunner(next: runner)
-        )
+        makeProvider(home: home, root: directory.url.appending(path: "root"), runner: CurrentVersionRunner(next: runner))
     }
 
     @Test func runsUsageWithTheExactIsolatedInvocation() async throws {

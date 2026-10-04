@@ -22,13 +22,7 @@ import Testing
 
     /// A provider whose locator and invocations both go to `runner`.
     func provider(_ runner: FakeRunner) -> ClaudeProvider {
-        ClaudeProvider(
-            homeDirectory: home,
-            userName: "tester",
-            locator: ClaudeLocator(
-                homeDirectory: home, rootDirectory: root, userName: "tester", loginShell: loginShell, runner: runner),
-            runner: runner
-        )
+        makeProvider(home: home, root: root, runner: runner)
     }
 
     @Test func nothingFoundIsTheNotFoundProblem() async throws {
@@ -41,7 +35,7 @@ import Testing
             message: "Pacemark reads your limits through Claude Code. Install it and log in.",
             link: ProblemLink(title: "Install Claude Code", url: try #require(URL(string: "https://code.claude.com/docs/en/setup")))
         )))
-        #expect(runner.commands.map(\.executable) == [loginShell])
+        #expect(runner.commands.map(\.executable) == [fakeLoginShell])
     }
 
     @Test func freshInstallIsPickedUpOnTheNextQuery() async throws {
@@ -93,7 +87,7 @@ import Testing
         _ = await provider.fetch()
 
         #expect(usageRuns(runner) == [volta, volta])
-        #expect(runner.commands.filter { $0.executable == loginShell }.count == 1)
+        #expect(runner.commands.filter { $0.executable == fakeLoginShell }.count == 1)
     }
 
     @Test func versionBelow2_1_283IsTheTooOldProblemWithTheFoundVersion() async throws {
@@ -233,16 +227,6 @@ private func version(_ text: String) throws -> ClaudeVersion {
     try #require(ClaudeParser.version(from: Data(text.utf8)))
 }
 
-/// A symlink whose own modification date is `modified`, so re-creating it
-/// changes nothing but its target.
-private func makeSymlink(at url: URL, to target: URL, modified: Date) throws {
-    try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-    try FileManager.default.createSymbolicLink(at: url, withDestinationURL: target)
-    let seconds = Int(modified.timeIntervalSince1970)
-    var times = [timeval(tv_sec: seconds, tv_usec: 0), timeval(tv_sec: seconds, tv_usec: 0)]
-    #expect(lutimes(url.path(percentEncoded: false), &times) == 0)
-}
-
 /// The binaries `/usage` ran with, in order.
 private func usageRuns(_ runner: FakeRunner) -> [URL] {
     runner.commands.filter { $0.arguments.last == "/usage" }.map(\.executable)
@@ -253,9 +237,6 @@ extension FetchResult {
         if case .limits = self { true } else { false }
     }
 }
-
-/// Never run: a fake runner answers in its place.
-private let loginShell = URL(filePath: "/nonexistent/login-shell")
 
 /// Answers like a Mac with the fake binaries on disk: `--version` with the
 /// binary's contents, the login shell with `loginShell`'s stdout, and

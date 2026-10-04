@@ -51,12 +51,12 @@ public nonisolated struct MenuBarDisplay: Equatable, Sendable {
 public nonisolated func menuBarImage(_ display: MenuBarDisplay) -> NSImage {
     let glyph = NSImage(systemSymbolName: "gauge.with.needle", accessibilityDescription: nil)!
     let glyphSize = glyph.size
-    let trailing = Trailing(display.content)
-    let trailingSize = trailing?.size ?? .zero
-    let gap: CGFloat = trailing == nil ? 0 : 4
+    let percentageOrWarning = PercentageOrWarning(display.content)
+    let percentageOrWarningSize = percentageOrWarning?.size ?? .zero
+    let gap: CGFloat = percentageOrWarning == nil ? 0 : 4
     let size = NSSize(
-        width: ceil(glyphSize.width + gap + trailingSize.width),
-        height: ceil(max(glyphSize.height, trailingSize.height))
+        width: ceil(glyphSize.width + gap + percentageOrWarningSize.width),
+        height: ceil(max(glyphSize.height, percentageOrWarningSize.height))
     )
 
     let glyphTint: (isRed: Bool, isDimmed: Bool) = switch display.content {
@@ -80,8 +80,8 @@ public nonisolated func menuBarImage(_ display: MenuBarDisplay) -> NSImage {
             operation: .sourceOver,
             fraction: glyphTint.isDimmed ? dimmedAlpha : 1
         )
-        trailing?.draw(
-            at: NSPoint(x: glyphSize.width + gap, y: (rect.height - trailingSize.height) / 2),
+        percentageOrWarning?.draw(
+            at: NSPoint(x: glyphSize.width + gap, y: (rect.height - percentageOrWarningSize.height) / 2),
             foreground: foreground
         )
         return true
@@ -91,8 +91,9 @@ public nonisolated func menuBarImage(_ display: MenuBarDisplay) -> NSImage {
     return image
 }
 
-/// What follows the glyph.
-private nonisolated enum Trailing: Equatable {
+/// What follows the glyph: the percentage, or the warning triangle for a
+/// persistent error.
+private nonisolated enum PercentageOrWarning: Equatable {
     case text(String, isRed: Bool, isDimmed: Bool)
     /// `exclamationmark.triangle`, at the size of the menu bar font.
     case warning(NSImage)
