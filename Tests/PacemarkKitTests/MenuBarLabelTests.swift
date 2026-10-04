@@ -92,5 +92,5 @@ private let at91 = [session(utilization: 91, resetsAt: "2026-10-04T12:00:00Z")]
 
 /// The label image for `state` at `now` with the percentage off.
 private func percentageOff(_ state: ProviderState) -> NSImage {
-    menuBarImage(display(state, settings: Settings(showPercentage: false), now: now).menuBar)
+    menuBarImage(display(state, providerID: "claude", settings: Settings(showPercentage: false), now: now).menuBar)
 }

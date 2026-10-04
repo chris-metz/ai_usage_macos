@@ -60,7 +60,7 @@ import os
 
     /// What the menu bar item and the dropdown show at `now` (§6.3).
     public var display: Display {
-        PacemarkKit.display(state, settings: settings, now: now)
+        PacemarkKit.display(state, providerID: provider.id, settings: settings, now: now)
     }
 
     // MARK: Events

@@ -39,6 +39,14 @@ public nonisolated struct Limit: Equatable, Sendable, Identifiable {
     }
 }
 
+extension Limit {
+    /// How the settings name this limit: `{provider id}/{limit id}`, e.g.
+    /// `claude/session` or `claude/model:Fable`. Never shown.
+    public nonisolated func qualifiedID(providerID: String) -> String {
+        "\(providerID)/\(id)"
+    }
+}
+
 /// A running window: utilization and reset time come together or not at all.
 public nonisolated struct ActiveWindow: Equatable, Sendable {
     /// Percent as delivered; may exceed 100.

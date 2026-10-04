@@ -22,34 +22,46 @@ public nonisolated enum DropdownContent: Equatable, Sendable {
     case loading
     /// A persistent error: its heading, message and link.
     case problem(Problem)
-    /// One row per limit, in provider order.
+    /// One row per limit that isn't hidden, in provider order.
     case limits([Limit])
+    /// There are limits, and the settings hide every one of them.
+    case allHidden
     /// The last query failed temporarily and nothing has loaded yet.
     case noValues
 }
 
 /// What the menu bar item and the dropdown show for `state` at `now`
-/// (§6.3).
-public nonisolated func display(_ state: ProviderState, settings: Settings, now: Date) -> Display {
+/// (§6.3). The settings name limits by their qualified id, so they need the
+/// id of the provider that `state` belongs to.
+public nonisolated func display(_ state: ProviderState, providerID: String, settings: Settings, now: Date) -> Display {
     let staleAge = staleAge(state, interval: settings.refreshInterval, now: now)
     let dropdown: DropdownContent = switch (state.lastOutcome, state.limits) {
     case (nil, _): .loading
     case (.problem(let problem)?, _): .problem(problem)
-    case (_, let limits?): .limits(limits)
+    case (_, let limits?): visibleRows(limits, providerID: providerID, hidden: settings.hiddenLimits)
     default: .noValues
     }
     return Display(
         dropdown: dropdown,
         staleLine: staleAge.map(staleLine),
-        menuBar: menuBarDisplay(state, settings: settings, isStale: staleAge != nil, now: now)
+        menuBar: menuBarDisplay(state, providerID: providerID, settings: settings, isStale: staleAge != nil, now: now)
     )
 }
 
-/// The menu bar item (§2 States). The menu bar limit is the first limit.
-/// With the percentage off, the glyph carries red and dimming; the
-/// accessibility text still names the limit and its percentage.
+/// The limits the settings don't hide, or `allHidden` if they hide every
+/// one.
+private nonisolated func visibleRows(_ limits: [Limit], providerID: String, hidden: [String]) -> DropdownContent {
+    let visible = limits.filter { !hidden.contains($0.qualifiedID(providerID: providerID)) }
+    return visible.isEmpty && !limits.isEmpty ? .allHidden : .limits(visible)
+}
+
+/// The menu bar item (§2 States) for the menu bar limit: the picked one, or
+/// the first limit whenever the picked one is missing. With the percentage
+/// off, the glyph carries red and dimming; the accessibility text still
+/// names the limit and its percentage.
 private nonisolated func menuBarDisplay(
     _ state: ProviderState,
+    providerID: String,
     settings: Settings,
     isStale: Bool,
     now: Date
@@ -57,7 +69,9 @@ private nonisolated func menuBarDisplay(
     if case .problem(let problem) = state.lastOutcome {
         return MenuBarDisplay(content: .warning, accessibilityText: "Pacemark: \(problem.heading)")
     }
-    guard let limit = state.limits?.first else {
+    let limits = state.limits ?? []
+    let picked = limits.first { $0.qualifiedID(providerID: providerID) == settings.menuBarLimitID }
+    guard let limit = picked ?? limits.first else {
         return MenuBarDisplay(content: .glyph(), accessibilityText: "Pacemark")
     }
     let shown = limitDisplay(limit, now: now)
