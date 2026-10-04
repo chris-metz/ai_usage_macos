@@ -28,6 +28,10 @@ _Avoid_: expiry, renewal, reset date
 A limit at 100 % utilization: it allows no further use until its reset time.
 _Avoid_: used up, full, maxed out
 
+**Menu bar limit**:
+The limit whose utilization the menu bar item shows. The user picks it; by default it is the provider's first limit, for Claude the session limit.
+_Avoid_: headline limit, main limit, primary limit
+
 ### Claude's limits
 
 **Session limit**:
