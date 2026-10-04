@@ -91,8 +91,11 @@ nonisolated enum ClaudeParser {
                 throw SchemaMismatch("a model scope has no non-empty display_name")
             }
             return Limit(id: "model:\(name)", title: "\(name) limit", windowLength: weeklyWindow, window: try window(of: row))
-        case let kind:
-            claudeLog.info("Ignored a limits row of kind \(String(describing: kind), privacy: .public)")
+        case .string(let kind)?:
+            claudeLog.info("Ignored a limits row of kind \(kind, privacy: .public)")
+            return nil
+        default:
+            claudeLog.info("Ignored a limits row without a string kind")
             return nil
         }
     }

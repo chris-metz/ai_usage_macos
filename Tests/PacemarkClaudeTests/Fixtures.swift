@@ -2,7 +2,7 @@ import Foundation
 import Testing
 
 /// Real `claude` output and hand-edited variants, bundled as test resources.
-enum Fixtures {
+nonisolated enum Fixtures {
     static func data(_ name: String) throws -> Data {
         let url = try #require(
             Bundle.module.url(forResource: name, withExtension: nil, subdirectory: "Fixtures"),
