@@ -107,7 +107,6 @@ import Testing
         #expect(versionText(infoDictionary: info) == "Version 0.1")
     }
 
-    /// A model with `settings` after its first query answered `result`.
     private func settingsView(_ model: AppModel, openAtLogin: OpenAtLogin) -> SettingsView {
         SettingsView(model: model, openAtLogin: openAtLogin, version: "Version 0.1 (a1b2c3d)")
     }
