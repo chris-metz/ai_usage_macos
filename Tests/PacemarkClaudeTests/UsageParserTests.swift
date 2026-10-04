@@ -19,6 +19,43 @@ private let sevenDays: TimeInterval = 7 * 24 * 60 * 60
         expectDate(limits[1].window?.resetsAt, near: 1_791_334_799.823845)  // 2026-10-07T00:59:59.823845Z
         expectDate(limits[2].window?.resetsAt, near: 1_791_334_800)  // 2026-10-07T01:00:00Z
     }
+
+    @Test func sessionRowWithoutResetTimeIsNoWindow() throws {
+        let limits = try parsedLimits("usage-no-session-window.stream.jsonl")
+
+        #expect(limits.map(\.id) == ["session", "weekly", "model:Fable"])
+        #expect(limits[0] == Limit(id: "session", title: "Session limit", windowLength: fiveHours, window: nil))
+        #expect(limits[1].window?.utilization == 41)
+    }
+
+    @Test func missingSessionRowStillGivesASessionLimitFirst() throws {
+        let limits = try parsedLimits("variant-no-session.stream.jsonl")
+
+        #expect(limits.map(\.id) == ["session", "weekly", "model:Fable"])
+        #expect(limits[0] == Limit(id: "session", title: "Session limit", windowLength: fiveHours, window: nil))
+    }
+
+    @Test func orderIsSessionWeeklyThenModelsInServerOrder() throws {
+        let limits = try parsedLimits("variant-two-models.stream.jsonl")
+
+        #expect(limits.map(\.id) == ["session", "weekly", "model:Opus", "model:Fable"])
+        #expect(limits.map(\.title) == ["Session limit", "Weekly limit", "Opus limit", "Fable limit"])
+        #expect(limits.map(\.windowLength) == [fiveHours, sevenDays, sevenDays, sevenDays])
+        #expect(limits.map(\.window?.utilization) == [14, 36, 12, 0])
+    }
+
+    @Test(arguments: ["variant-unknown-kind.stream.jsonl", "variant-surface-scope.stream.jsonl"])
+    func rowsOfOtherKindsOrScopesAreIgnored(fixture: String) throws {
+        let limits = try parsedLimits(fixture)
+
+        #expect(limits.map(\.id) == ["session", "weekly", "model:Fable"])
+    }
+
+    @Test func loggedOutOutputHasNoReport() throws {
+        let report = ClaudeParser.usageReport(from: try Fixtures.data("usage-logged-out.stream.jsonl"))
+
+        #expect(report == .missing)
+    }
 }
 
 /// Parses a fixture and fails the test unless it yields limits.
