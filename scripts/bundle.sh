@@ -19,14 +19,21 @@ cp "$BINARY" "$CONTENTS/MacOS/Pacemark"
 
 # 3. Compile the icon into Assets.car plus a fallback AppIcon.icns. actool
 #    can exit 0 without writing them when it can't read the icon, so check.
+#    It reports errors as a plist on stdout: keep it for when a step fails.
 mkdir -p "$CONTENTS/Resources"
+ACTOOL_REPORT=build/actool-report.plist
 xcrun actool Resources/AppIcon.icon --compile "$CONTENTS/Resources" \
     --app-icon AppIcon --platform macosx --target-device mac \
     --minimum-deployment-target 27.0 --output-partial-info-plist build/partial.plist \
-    >/dev/null
+    >"$ACTOOL_REPORT" || {
+    echo "actool failed on Resources/AppIcon.icon. Its report:" >&2
+    cat "$ACTOOL_REPORT" >&2
+    exit 1
+}
 for FILE in Assets.car AppIcon.icns; do
     if [ ! -f "$CONTENTS/Resources/$FILE" ]; then
-        echo "actool didn't produce $FILE from Resources/AppIcon.icon" >&2
+        echo "actool didn't produce $FILE from Resources/AppIcon.icon. Its report:" >&2
+        cat "$ACTOOL_REPORT" >&2
         exit 1
     fi
 done
