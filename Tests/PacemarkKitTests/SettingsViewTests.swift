@@ -1,5 +1,6 @@
 import Foundation
 import PacemarkKit
+import ServiceManagement
 import SwiftUI
 import Testing
 
@@ -9,14 +10,31 @@ import Testing
     @Test func settingsWindowDefault() async {
         let model = await model(after: .limits(claudeLimits))
 
-        expectViewSnapshot(SettingsView(model: model, version: "Version 0.1 (a1b2c3d)"), width: 440)
+        expectViewSnapshot(settingsView(model, openAtLogin: installedCopy(.notRegistered)), width: 440)
     }
 
     /// No query has finished yet, and nothing is stored.
     @Test func settingsWindowBeforeFirstSuccess() {
         let model = AppModel(provider: FakeProvider())
 
-        expectViewSnapshot(SettingsView(model: model, version: "Version 0.1 (a1b2c3d)"), width: 440)
+        expectViewSnapshot(settingsView(model, openAtLogin: installedCopy(.notRegistered)), width: 440)
+    }
+
+    @Test func settingsWindowOpenAtLoginTurnedOffInSystemSettings() {
+        let model = AppModel(provider: FakeProvider())
+
+        expectViewSnapshot(settingsView(model, openAtLogin: installedCopy(.requiresApproval)), width: 440)
+    }
+
+    @Test func settingsWindowOutsideApplications() {
+        let model = AppModel(provider: FakeProvider())
+        let loginItem = FakeLoginItem(.enabled)
+        let openAtLogin = OpenAtLogin(loginItem: loginItem, bundleURL: URL(filePath: "/Users/chris/code/pacemark/build/Pacemark.app"))
+        openAtLogin.refresh()
+
+        expectViewSnapshot(settingsView(model, openAtLogin: openAtLogin), width: 440)
+
+        #expect(loginItem.statusReads == 0)
     }
 
     /// The stored menu bar limit is missing from the current limits, and
@@ -26,7 +44,7 @@ import Testing
                                             menuBarLimitTitle: "Opus limit")
         let model = await model(after: .limits(claudeLimits), settings: settings)
 
-        expectViewSnapshot(SettingsView(model: model, version: "Version 0.1 (a1b2c3d)"), width: 440)
+        expectViewSnapshot(settingsView(model, openAtLogin: installedCopy(.notRegistered)), width: 440)
     }
 
     // The Limit picker.
@@ -98,5 +116,17 @@ import Testing
         model.launch()
         _ = await timer.armed()
         return model
+    }
+
+    private func settingsView(_ model: AppModel, openAtLogin: OpenAtLogin) -> SettingsView {
+        SettingsView(model: model, openAtLogin: openAtLogin, version: "Version 0.1 (a1b2c3d)")
+    }
+
+    /// The copy at `/Applications/Pacemark.app`, its login item's status
+    /// read as the window would on appearing.
+    private func installedCopy(_ status: SMAppService.Status) -> OpenAtLogin {
+        let openAtLogin = OpenAtLogin(loginItem: FakeLoginItem(status), bundleURL: URL(filePath: "/Applications/Pacemark.app"))
+        openAtLogin.refresh()
+        return openAtLogin
     }
 }
