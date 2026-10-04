@@ -29,7 +29,7 @@ struct LimitRow: View {
                 Spacer()
                 if let paceText = display.paceText {
                     Text(paceText)
-                        .foregroundStyle(display.paceTextColor.color)
+                        .foregroundStyle(display.paceTextColor.textColor)
                 }
             }
             .font(.system(size: 11))
@@ -96,6 +96,36 @@ extension LimitColor {
         case .red: Color(nsColor: .systemRed)
         case .green: Color(nsColor: .systemGreen)
         case .secondary: Color(nsColor: .secondaryLabelColor)
+        }
+    }
+
+    /// `color` for the pace text. The system green and orange are hard to
+    /// read as small text on a light background, so in light they are darker.
+    var textColor: Color {
+        switch self {
+        case .green: Color(nsColor: .darkerInLight(.systemGreen))
+        case .orange: Color(nsColor: .darkerInLight(.systemOrange))
+        case .blue, .red, .secondary: color
+        }
+    }
+}
+
+private extension NSColor {
+    /// `color` in dark; in light, `color` at 70% brightness.
+    static func darkerInLight(_ color: NSColor) -> NSColor {
+        NSColor(name: nil) { appearance in
+            guard appearance.bestMatch(from: [.aqua, .darkAqua]) == .aqua else { return color }
+            var darker = color
+            appearance.performAsCurrentDrawingAppearance {
+                let light = color.usingColorSpace(.sRGB)!
+                darker = NSColor(
+                    srgbRed: light.redComponent * 0.7,
+                    green: light.greenComponent * 0.7,
+                    blue: light.blueComponent * 0.7,
+                    alpha: light.alphaComponent
+                )
+            }
+            return darker
         }
     }
 }
