@@ -31,8 +31,8 @@ public nonisolated struct MenuBarDisplay: Equatable, Sendable {
         /// The glyph alone.
         case glyph
         /// The glyph and the menu bar limit's displayed utilization, e.g.
-        /// `14%`, in red from 90%.
-        case percentage(String, isRed: Bool)
+        /// `14%`, in red from 90% and dimmed while the values are stale.
+        case percentage(String, isRed: Bool, isDimmed: Bool)
         /// The glyph and `⚠︎`: a persistent error.
         case warning
     }
@@ -41,7 +41,7 @@ public nonisolated struct MenuBarDisplay: Equatable, Sendable {
     var percentText: String? {
         switch content {
         case .glyph, .warning: nil
-        case .percentage(let text, _): text
+        case .percentage(let text, _, _): text
         }
     }
 }

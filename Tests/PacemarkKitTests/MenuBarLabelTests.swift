@@ -6,7 +6,7 @@ import Testing
 /// menu bar would.
 @Suite struct MenuBarLabelTests {
     @Test func labelPercentage() {
-        let display = MenuBarDisplay(content: .percentage("14%", isRed: false), accessibilityText: "Session limit 14%")
+        let display = MenuBarDisplay(content: .percentage("14%", isRed: false, isDimmed: false), accessibilityText: "Session limit 14%")
 
         expectLabelSnapshot(menuBarImage(display))
     }
@@ -18,7 +18,7 @@ import Testing
     }
 
     @Test func imageCarriesTheAccessibilityText() {
-        let display = MenuBarDisplay(content: .percentage("14%", isRed: false), accessibilityText: "Session limit 14%")
+        let display = MenuBarDisplay(content: .percentage("14%", isRed: false, isDimmed: false), accessibilityText: "Session limit 14%")
 
         #expect(menuBarImage(display).accessibilityDescription == "Session limit 14%")
     }

@@ -18,7 +18,7 @@ import Testing
         model.launch()
         _ = await timer.armed()
 
-        #expect(model.display.menuBar == MenuBarDisplay(content: .percentage("14%", isRed: false), accessibilityText: "Session limit 14%"))
+        #expect(model.display.menuBar == MenuBarDisplay(content: .percentage("14%", isRed: false, isDimmed: false), accessibilityText: "Session limit 14%"))
     }
 
     @Test func aSessionLimitWithNoWindowShows0Percent() async {
@@ -29,7 +29,7 @@ import Testing
         model.launch()
         _ = await timer.armed()
 
-        #expect(model.display.menuBar == MenuBarDisplay(content: .percentage("0%", isRed: false), accessibilityText: "Session limit 0%"))
+        #expect(model.display.menuBar == MenuBarDisplay(content: .percentage("0%", isRed: false, isDimmed: false), accessibilityText: "Session limit 0%"))
     }
 
     @Test func utilizationShowsRoundedAndAtMost100Percent() async {
@@ -45,11 +45,53 @@ import Testing
 
         model.launch()
         time += await timer.armed()
-        #expect(model.display.menuBar.content == .percentage("71%", isRed: false))
+        #expect(model.display.menuBar.content == .percentage("71%", isRed: false, isDimmed: false))
 
         timer.fire()
         _ = await timer.armed()
-        #expect(model.display.menuBar.content == .percentage("100%", isRed: true))
+        #expect(model.display.menuBar.content == .percentage("100%", isRed: true, isDimmed: false))
+    }
+
+    @Test func aTemporaryErrorAfterAProblemShowsNoValuesInsteadOfOldBars() async {
+        var time = beforeTheResets
+        let timer = FakeTimer()
+        let model = AppModel(provider: FakeProvider(.limits(claudeLimits), .problem(notLoggedIn), .unavailable),
+                             clock: { time }, sleep: { try await timer.sleep($0) })
+        model.launch()
+        time += await timer.armed()
+        timer.fire()
+        time += await timer.armed()
+
+        timer.fire()
+        _ = await timer.armed()
+
+        #expect(model.display == Display(
+            dropdown: .noValues,
+            staleLine: nil,
+            menuBar: MenuBarDisplay(content: .glyph, accessibilityText: "Pacemark")
+        ))
+    }
+
+    @Test func valuesTurnStaleAndDimWhileQueriesKeepFailing() async {
+        var time = beforeTheResets
+        let timer = FakeTimer()
+        let model = AppModel(provider: FakeProvider(.limits(claudeLimits), .unavailable), clock: { time },
+                             sleep: { try await timer.sleep($0) })
+        model.launch()
+        _ = await timer.armed()
+        time += 9 * 60
+        timer.fire()
+        _ = await timer.armed()
+        #expect(model.display.staleLine == nil)
+
+        time += 2 * 60
+        model.minuteTick()
+
+        #expect(model.display.staleLine == "Couldn't update · Last update 11 min ago")
+        #expect(model.display.menuBar == MenuBarDisplay(
+            content: .percentage("14%", isRed: false, isDimmed: true),
+            accessibilityText: "Session limit 14%, not up to date"
+        ))
     }
 
     @Test func nowIsTheClocksTimeAtLaunchAndAfterEveryQuery() async {
@@ -76,7 +118,7 @@ import Testing
         time = Date(timeIntervalSince1970: 1_790_000_001)
         model.minuteTick()
 
-        #expect(model.display.menuBar == MenuBarDisplay(content: .percentage("0%", isRed: false), accessibilityText: "Session limit 0%"))
+        #expect(model.display.menuBar == MenuBarDisplay(content: .percentage("0%", isRed: false, isDimmed: false), accessibilityText: "Session limit 0%"))
     }
 }
 
