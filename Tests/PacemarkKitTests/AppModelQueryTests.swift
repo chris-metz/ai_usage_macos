@@ -123,6 +123,129 @@ struct AppModelQueryTests {
         #expect(model.state.lastAttemptAt == launchedAt + 3)
         #expect(next == 5 * 60)
     }
+
+    @Test func theMinuteTickUpdatesNowWithoutQuerying() async {
+        var time = launchedAt
+        let timer = FakeTimer()
+        let model = AppModel(provider: FakeProvider(.limits(claudeLimits)),
+                             clock: { time }, sleep: { try await timer.sleep($0) })
+        model.launch()
+        _ = await timer.armed()
+
+        time += 60
+        model.minuteTick()
+
+        #expect(model.now == launchedAt + 60)
+        #expect(!model.state.isQuerying)
+    }
+
+    @Test func theNetworkComingBackAfterAFailureQueriesAtOnce() async {
+        var time = launchedAt
+        let timer = FakeTimer()
+        let model = AppModel(provider: FakeProvider(.unavailable, .limits(claudeLimits)),
+                             clock: { time }, sleep: { try await timer.sleep($0) })
+        model.networkChanged(isSatisfied: true)
+        model.launch()
+        _ = await timer.armed()
+
+        model.networkChanged(isSatisfied: false)
+        time += 20
+        model.networkChanged(isSatisfied: true)
+        _ = await timer.armed()
+
+        #expect(model.state.lastAttemptAt == launchedAt + 20)
+        #expect(model.state.lastOutcome == .success)
+    }
+
+    @Test func theNetworkComingBackAfterASuccessDoesNotQuery() async {
+        let timer = FakeTimer()
+        let model = AppModel(provider: FakeProvider(.limits(claudeLimits)),
+                             clock: { launchedAt }, sleep: { try await timer.sleep($0) })
+        model.networkChanged(isSatisfied: true)
+        model.launch()
+        _ = await timer.armed()
+
+        model.networkChanged(isSatisfied: false)
+        model.networkChanged(isSatisfied: true)
+
+        #expect(!model.state.isQuerying)
+    }
+
+    @Test func wakingWithTheNetworkUpQueriesAtOnce() async {
+        var time = launchedAt
+        let timer = FakeTimer()
+        let model = AppModel(provider: FakeProvider(.limits(claudeLimits), .limits(claudeLimits)),
+                             clock: { time }, sleep: { try await timer.sleep($0) })
+        model.networkChanged(isSatisfied: true)
+        model.launch()
+        _ = await timer.armed()
+
+        time += 100
+        model.wake()
+        _ = await timer.armed()
+
+        #expect(model.state.lastAttemptAt == launchedAt + 100)
+    }
+
+    @Test func wakingWithoutNetworkQueriesWhenItComesBack() async {
+        var time = launchedAt
+        let timer = FakeTimer()
+        let model = AppModel(provider: FakeProvider(.limits(claudeLimits), .limits(claudeLimits)),
+                             clock: { time }, sleep: { try await timer.sleep($0) })
+        model.networkChanged(isSatisfied: true)
+        model.launch()
+        _ = await timer.armed()
+        model.networkChanged(isSatisfied: false)
+
+        time += 100
+        model.wake()
+        #expect(!model.state.isQuerying)
+        time += 5
+        model.networkChanged(isSatisfied: true)
+        _ = await timer.armed()
+
+        #expect(model.state.lastAttemptAt == launchedAt + 105)
+    }
+
+    @Test func wakingWithoutNetworkQueries30SecondsLaterAtTheLatest() async {
+        var time = launchedAt
+        let timer = FakeTimer()
+        let model = AppModel(provider: FakeProvider(.limits(claudeLimits), .unavailable),
+                             clock: { time }, sleep: { try await timer.sleep($0) })
+        model.launch()
+        _ = await timer.armed()
+
+        time += 100
+        model.wake()
+        let wait = await timer.armed()
+        time += wait
+        timer.fire()
+        _ = await timer.armed()
+
+        #expect(wait == 30)
+        #expect(model.state.lastAttemptAt == launchedAt + 130)
+    }
+
+    @Test func theProviderQueriesOffTheMainThread() async {
+        let timer = FakeTimer()
+        let model = AppModel(provider: MainThreadProbe(), clock: { launchedAt }, sleep: { try await timer.sleep($0) })
+
+        model.launch()
+        _ = await timer.armed()
+
+        #expect(model.state.lastOutcome == .success)
+    }
+}
+
+/// A provider without an isolation of its own, like the Claude provider:
+/// it succeeds only when its query runs off the main thread.
+nonisolated struct MainThreadProbe: Provider {
+    let id = "probe"
+    let name = "Probe"
+
+    func fetch() async -> FetchResult {
+        pthread_main_np() == 0 ? .limits([]) : .unavailable
+    }
 }
 
 /// A persistent error as a provider might report it.

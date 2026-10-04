@@ -18,6 +18,11 @@ import Observation
     @ObservationIgnored private let clock: () -> Date
     @ObservationIgnored private let sleep: @Sendable (TimeInterval) async throws -> Void
     @ObservationIgnored private var timer: Task<Void, Never>?
+    /// The network path's last status; unknown counts as not satisfied.
+    @ObservationIgnored private var isNetworkSatisfied = false
+    /// After a wake without network, the query runs at this time at the
+    /// latest; nil when no wake waits.
+    @ObservationIgnored private var wakeDeadline: Date?
 
     /// - Parameters:
     ///   - clock: The current time.
@@ -62,6 +67,32 @@ import Observation
         }
     }
 
+    /// The Mac woke from sleep: query as soon as the network is up, at the
+    /// latest 30 s from now.
+    public func wake() {
+        if isNetworkSatisfied {
+            query()
+        } else {
+            wakeDeadline = clock().addingTimeInterval(30)
+            schedule()
+        }
+    }
+
+    /// The network path changed. When it comes back after a wake or a
+    /// temporary error, the query runs at once.
+    public func networkChanged(isSatisfied: Bool) {
+        let cameBack = isSatisfied && !isNetworkSatisfied
+        isNetworkSatisfied = isSatisfied
+        if cameBack, wakeDeadline != nil || state.lastOutcome == .unavailable {
+            query()
+        }
+    }
+
+    /// A full minute has passed: everything time-dependent re-renders.
+    public func minuteTick() {
+        now = clock()
+    }
+
     /// Queries now if the schedule says so, and otherwise arms the timer for
     /// the next scheduled query.
     private func schedule() {
@@ -69,7 +100,10 @@ import Observation
         timer = nil
         guard !state.isQuerying else { return }
         let now = clock()
-        let next = nextQueryAt(state, interval: refreshInterval, now: now)
+        var next = nextQueryAt(state, interval: refreshInterval, now: now)
+        if let wakeDeadline {
+            next = min(next, wakeDeadline)
+        }
         guard next > now else {
             query()
             return
@@ -89,6 +123,7 @@ import Observation
     private func query() {
         guard !state.isQuerying else { return }
         state.isQuerying = true
+        wakeDeadline = nil
         timer?.cancel()
         timer = nil
         Task {
