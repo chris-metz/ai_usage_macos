@@ -28,7 +28,8 @@ import Observation
         return MenuBarDisplay(percentText: percent, accessibilityText: "\(limit.title) \(percent)")
     }
 
-    /// Runs one query and records its result.
+    /// Runs one query. A success replaces the limits; anything else keeps
+    /// them until the refresh schedule's bookkeeping (§6.4) arrives.
     public func query() async {
         let result = await provider.fetch()
         if case .limits(let limits) = result {
