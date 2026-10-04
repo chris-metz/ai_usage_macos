@@ -36,12 +36,22 @@ struct AppModelSettingsTests {
         model.launch()
         _ = await timer.armed()
 
-        model.pickMenuBarLimit(claudeLimits[1])
+        model.pickMenuBarLimit(id: "fake/weekly")
 
         let stored = SettingsStore(defaults: defaults.defaults).load()
         #expect(stored.menuBarLimitID == "fake/weekly")
         #expect(stored.menuBarLimitTitle == "Weekly limit")
         #expect(model.display.menuBar.accessibilityText == "Weekly limit 36%")
+    }
+
+    /// The picker's `(not available)` entry is no limit to pick.
+    @Test func pickingTheMissingStoredChoiceChangesNothing() async {
+        let stored = Settings(menuBarLimitID: "fake/model:Opus", menuBarLimitTitle: "Opus limit")
+        let model = await model(after: .limits(claudeLimits), settings: stored, at: beforeTheResets)
+
+        model.pickMenuBarLimit(id: "fake/model:Opus")
+
+        #expect(model.settings == stored)
     }
 
     @Test func hidingAndShowingALimitKeepsHiddenIDsTheProviderDoesntDeliver() async {

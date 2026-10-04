@@ -52,16 +52,8 @@ public struct SettingsView: View {
 
     /// The menu bar limit, picked from the current limits.
     private var menuBarLimit: some View {
-        let picker = menuBarLimitPicker(limits: model.state.limits, providerID: model.provider.id,
-                                        settings: model.settings)
-        let selection = Binding {
-            picker.selection
-        } set: { id in
-            // The `(not available)` entry is no limit to pick.
-            if let limit = model.state.limits?.first(where: { model.qualifiedID(of: $0) == id }) {
-                model.pickMenuBarLimit(limit)
-            }
-        }
+        let picker = model.menuBarLimitPicker
+        let selection = Binding { picker.selection } set: { model.pickMenuBarLimit(id: $0) }
         return Picker("Limit", selection: selection) {
             ForEach(picker.entries) { entry in
                 Text(verbatim: entry.title).tag(entry.id)

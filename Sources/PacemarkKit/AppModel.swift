@@ -65,15 +65,18 @@ import os
 
     // MARK: Settings window
 
-    /// How the settings name `limit`, one of this provider's.
-    public func qualifiedID(of limit: Limit) -> String {
-        limit.qualifiedID(providerID: provider.id)
+    /// What the settings window's `Limit` picker offers and selects (§4).
+    public var menuBarLimitPicker: MenuBarLimitPicker {
+        PacemarkKit.menuBarLimitPicker(limits: state.limits, providerID: provider.id, settings: settings)
     }
 
-    /// Makes `limit` the menu bar limit: stores its qualified id, and its
-    /// title for when it goes missing (`(not available)`).
-    public func pickMenuBarLimit(_ limit: Limit) {
-        settings.menuBarLimitID = qualifiedID(of: limit)
+    /// Makes the current limit with the qualified id `id` the menu bar
+    /// limit: stores the id, and the title for when it goes missing
+    /// (`(not available)`). An id of no current limit, such as the
+    /// `(not available)` entry's, changes nothing.
+    public func pickMenuBarLimit(id: String) {
+        guard let limit = state.limits?.first(where: { qualifiedID(of: $0) == id }) else { return }
+        settings.menuBarLimitID = id
         settings.menuBarLimitTitle = limit.title
     }
 
@@ -91,6 +94,11 @@ import os
         } else if !settings.hiddenLimits.contains(id) {
             settings.hiddenLimits.append(id)
         }
+    }
+
+    /// How the settings name `limit`, one of this provider's.
+    private func qualifiedID(of limit: Limit) -> String {
+        limit.qualifiedID(providerID: provider.id)
     }
 
     // MARK: Events
