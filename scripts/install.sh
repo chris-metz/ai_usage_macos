@@ -25,5 +25,6 @@ echo "Installed and launched /Applications/Pacemark.app"
 # back over this build.
 if command -v brew >/dev/null && brew list --cask pacemark >/dev/null 2>&1; then
     echo "Warning: Homebrew lists the cask pacemark, so the next brew upgrade replaces" >&2
-    echo "this local build with the release. brew uninstall --cask pacemark ends that." >&2
+    echo "this local build with the release. To end that, run brew uninstall --cask" >&2
+    echo "pacemark, which also removes this build, then scripts/install.sh again." >&2
 fi

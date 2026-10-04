@@ -88,11 +88,14 @@ fi
 gh auth status >/dev/null 2>&1 || fail "gh isn't logged in, run gh auth login"
 [ "$(gh api "repos/$TAP_REPO" --jq .permissions.push 2>/dev/null)" = true ] ||
     fail "gh can't push to $TAP_REPO"
-IDENTITY="$(security find-identity -v -p codesigning | awk '/"Developer ID Application: / { print $2; exit }')"
-[ -n "$IDENTITY" ] ||
+DEVELOPER_ID="$(security find-identity -v -p codesigning | awk '/"Developer ID Application: / { print $2; exit }')"
+[ -n "$DEVELOPER_ID" ] ||
     fail "no Developer ID Application identity in the keychain, see scripts/setup-release.sh"
 xcrun notarytool history --keychain-profile "$NOTARY_PROFILE" >/dev/null 2>&1 ||
     fail "the notarytool profile $NOTARY_PROFILE doesn't work, see scripts/setup-release.sh"
+mkdir -p build
+scripts/release-notes.sh "$LAST_TAG" >"$NOTES"
+[ -s "$NOTES" ] || fail "nothing was merged into main since $LAST_TAG"
 echo "Releasing $VERSION${LAST_TAG:+ after $LAST_TAG}"
 
 # 2. Test.
@@ -121,7 +124,7 @@ ditto "$APP" "$DMG_ROOT/Pacemark.app"
 ln -s /Applications "$DMG_ROOT/Applications"
 hdiutil create -quiet -ov -volname Pacemark -srcfolder "$DMG_ROOT" -format UDZO "$DMG"
 rm -rf "$DMG_ROOT"
-codesign --sign "$IDENTITY" --timestamp "$DMG"
+codesign --sign "$DEVELOPER_ID" --timestamp "$DMG"
 
 step "Notarizing the DMG"
 notarize "$DMG"
@@ -130,12 +133,13 @@ xcrun stapler staple "$DMG"
 step "Verifying"
 xcrun stapler validate "$APP"
 xcrun stapler validate "$DMG"
-spctl --assess --type execute --verbose "$APP"
-spctl --assess --type open --context context:primary-signature --verbose "$DMG"
+# Without --verbose, which would print the identity's name.
+spctl --assess --type execute "$APP"
+spctl --assess --type open --context context:primary-signature "$DMG"
+echo "Gatekeeper accepts $APP and $DMG"
 
-# 5. The release notes and the cask, from the stapled DMG.
-step "Writing the release notes and the cask"
-scripts/release-notes.sh "$LAST_TAG" >"$NOTES"
+# 5. The cask, for the stapled DMG.
+step "Writing the cask"
 SHA256="$(shasum -a 256 "$DMG" | awk '{ print $1 }')"
 cat >"$CASK" <<EOF
 cask "pacemark" do
@@ -164,7 +168,7 @@ cask "pacemark" do
   ]
 end
 EOF
-echo "Wrote $NOTES and $CASK"
+echo "Wrote $CASK"
 
 if [ -n "$DRY_RUN" ]; then
     printf '\nDry run done: %s is notarized and verified. Nothing is published.\n' "$DMG"
@@ -173,8 +177,10 @@ if [ -n "$DRY_RUN" ]; then
     exit
 fi
 
-# 6. Publish: the tag, the GitHub release, then the cask in the tap.
+# 6. Publish: the tag, the GitHub release, then the cask in the tap. A rerun
+#    stops at the existing tag, so a failure here needs finishing by hand.
 step "Publishing"
+trap '[ $? -eq 0 ] || echo "Publishing stopped half way. Finish its remaining steps by hand from build/ (the DMG, release notes and cask), or delete the GitHub release and the tag $TAG and run again." >&2' EXIT
 git tag -a "$TAG" -m "Pacemark $VERSION"
 git push --quiet origin "$TAG"
 gh release create "$TAG" "$DMG" --repo "$REPO" --verify-tag \

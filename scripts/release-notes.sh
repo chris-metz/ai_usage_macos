@@ -1,7 +1,7 @@
 #!/bin/sh
 # Prints the release notes for the merges into the current branch since TAG:
 # one bullet per first-parent merge commit, by its title. Without TAG (the
-# first release), "First release." and the requirements from the README.
+# first release), "First release." and the requirements, as in the README.
 # Runs in the current directory's repo.
 # Usage: scripts/release-notes.sh [TAG]
 set -eu
@@ -20,7 +20,9 @@ EOF
     exit
 fi
 
-for COMMIT in $(git rev-list --first-parent --merges --reverse "$TAG..HEAD"); do
+# Listed first, so an unknown TAG stops the script.
+MERGES="$(git rev-list --first-parent --merges --reverse "$TAG..HEAD")"
+for COMMIT in $MERGES; do
     TITLE="$(git log -1 --format=%s "$COMMIT")"
     case $TITLE in
         # GitHub's merge button puts the PR title in the body's first line.

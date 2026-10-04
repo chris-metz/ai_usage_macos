@@ -9,7 +9,7 @@ cd "$(dirname "$0")/.."
 case "${1:-}" in
     "") RELEASE= ;;
     --release)
-        [ $# -eq 2 ] || { echo "Usage: $0 [--release X.Y.Z]" >&2; exit 2; }
+        [ $# -eq 2 ] && [ -n "$2" ] || { echo "Usage: $0 [--release X.Y.Z]" >&2; exit 2; }
         RELEASE=1
         VERSION=$2
         ;;
@@ -92,29 +92,28 @@ plutil -insert CFBundleDevelopmentRegion -string en "$PLIST"
 #    with the hardened runtime and a secure timestamp, as notarization
 #    requires. A local build gets the first Apple Development identity, else
 #    ad hoc. No hardened runtime and no notarization: a locally built app
-#    isn't quarantined.
-# identity PREFIX: the line of the first valid identity whose name starts with PREFIX.
-identity() {
-    security find-identity -v -p codesigning | grep -m 1 "\"$1" || true
-}
+#    isn't quarantined. A release build doesn't print the identity's name, so
+#    release logs don't carry it.
 if [ -n "$RELEASE" ]; then
-    IDENTITY="$(identity "Developer ID Application: ")"
-    if [ -z "$IDENTITY" ]; then
+    KIND="Developer ID Application: "
+else
+    KIND="Apple Development"
+fi
+IDENTITY_LINE="$(security find-identity -v -p codesigning | grep -m 1 "\"$KIND")" || true
+IDENTITY_HASH="$(echo "$IDENTITY_LINE" | awk '{ print $2 }')"
+if [ -n "$RELEASE" ]; then
+    if [ -z "$IDENTITY_HASH" ]; then
         echo "No Developer ID Application identity found in the keychain" >&2
         exit 1
     fi
-    echo "Signing with $(echo "$IDENTITY" | awk -F'"' '{ print $2 }')"
-    codesign --force --options runtime --timestamp \
-        --sign "$(echo "$IDENTITY" | awk '{ print $2 }')" "$APP"
+    echo "Signing with the Developer ID Application identity"
+    codesign --force --options runtime --timestamp --sign "$IDENTITY_HASH" "$APP"
+elif [ -n "$IDENTITY_HASH" ]; then
+    echo "Signing with $(echo "$IDENTITY_LINE" | awk -F'"' '{ print $2 }')"
+    codesign --force --sign "$IDENTITY_HASH" "$APP"
 else
-    IDENTITY="$(identity "Apple Development")"
-    if [ -n "$IDENTITY" ]; then
-        echo "Signing with $(echo "$IDENTITY" | awk -F'"' '{ print $2 }')"
-        codesign --force --sign "$(echo "$IDENTITY" | awk '{ print $2 }')" "$APP"
-    else
-        echo "No Apple Development identity found, signing ad hoc"
-        codesign --force --sign - "$APP"
-    fi
+    echo "No Apple Development identity found, signing ad hoc"
+    codesign --force --sign - "$APP"
 fi
 codesign --verify --strict "$APP"
 

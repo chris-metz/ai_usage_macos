@@ -2,7 +2,7 @@
 # Tests scripts/release-notes.sh against throwaway git repos.
 set -eu
 
-NOTES="$(cd "$(dirname "$0")" && pwd)/release-notes.sh"
+NOTES_SCRIPT="$(cd "$(dirname "$0")" && pwd)/release-notes.sh"
 ROOT="$(mktemp -d)"
 trap 'rm -rf "$ROOT"' EXIT
 FAILURES=0
@@ -39,7 +39,7 @@ expect() {
     NAME=$1
     EXPECTED=$2
     shift 2
-    ACTUAL="$("$NOTES" "$@" 2>&1)" || true
+    ACTUAL="$("$NOTES_SCRIPT" "$@" 2>&1)" || true
     if [ "$ACTUAL" = "$EXPECTED" ]; then
         echo "ok - $NAME"
     else
@@ -92,5 +92,14 @@ git switch --quiet main
 git merge --quiet --no-ff topic -m "Merge reset line"
 expect "direct commits and merges inside a branch stay out" \
     "- Reset line" v1.0.0
+
+new_repo
+merge "Merge open at login"
+if "$NOTES_SCRIPT" v9.9.9 >/dev/null 2>&1; then
+    echo "not ok - an unknown tag fails"
+    FAILURES=$((FAILURES + 1))
+else
+    echo "ok - an unknown tag fails"
+fi
 
 [ "$FAILURES" -eq 0 ] || { echo "$FAILURES failed"; exit 1; }
