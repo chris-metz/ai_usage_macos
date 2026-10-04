@@ -45,6 +45,9 @@ public struct DropdownView: View {
             ForEach(limits) { limit in
                 LimitRow(display: limitDisplay(limit, now: model.now, timeZone: timeZone, locale: locale))
             }
+        case .allHidden:
+            Text("All limits are hidden.")
+                .foregroundStyle(.secondary)
         case .noValues:
             ProblemView(problem: Problem(
                 heading: "Can't load your limits right now",

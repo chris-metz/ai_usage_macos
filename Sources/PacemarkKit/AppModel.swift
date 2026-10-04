@@ -60,7 +60,37 @@ import os
 
     /// What the menu bar item and the dropdown show at `now` (§6.3).
     public var display: Display {
-        PacemarkKit.display(state, settings: settings, now: now)
+        PacemarkKit.display(state, providerID: provider.id, settings: settings, now: now)
+    }
+
+    // MARK: Settings window
+
+    /// How the settings name `limit`, one of this provider's.
+    public func qualifiedID(of limit: Limit) -> String {
+        limit.qualifiedID(providerID: provider.id)
+    }
+
+    /// Makes `limit` the menu bar limit: stores its qualified id, and its
+    /// title for when it goes missing (`(not available)`).
+    public func pickMenuBarLimit(_ limit: Limit) {
+        settings.menuBarLimitID = qualifiedID(of: limit)
+        settings.menuBarLimitTitle = limit.title
+    }
+
+    /// Whether the dropdown shows `limit`.
+    public func isLimitShownInDropdown(_ limit: Limit) -> Bool {
+        !settings.hiddenLimits.contains(qualifiedID(of: limit))
+    }
+
+    /// Shows or hides `limit` in the dropdown. Other stored hidden limits
+    /// stay, whether or not the provider currently delivers them.
+    public func setLimit(_ limit: Limit, shownInDropdown isShown: Bool) {
+        let id = qualifiedID(of: limit)
+        if isShown {
+            settings.hiddenLimits.removeAll { $0 == id }
+        } else if !settings.hiddenLimits.contains(id) {
+            settings.hiddenLimits.append(id)
+        }
     }
 
     // MARK: Events

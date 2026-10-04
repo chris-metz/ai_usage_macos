@@ -63,6 +63,19 @@ import Testing
         expectViewSnapshot(view, width: 300)
     }
 
+    @Test func dropdownAllLimitsHidden() async {
+        let hidden = ["fake/session", "fake/weekly", "fake/model:Fable"]
+        let view = await dropdown(after: .limits(threeLimits), settings: PacemarkKit.Settings(hiddenLimits: hidden))
+
+        expectViewSnapshot(view, width: 300)
+    }
+
+    @Test func dropdownSomeLimitsHidden() async {
+        let view = await dropdown(after: .limits(threeLimits), settings: PacemarkKit.Settings(hiddenLimits: ["fake/weekly"]))
+
+        expectViewSnapshot(view, width: 300)
+    }
+
     // The four problems of the Claude provider, with the appendix's texts.
 
     @Test func dropdownClaudeCodeNotFound() async {
@@ -118,10 +131,11 @@ import Testing
     }
 
     /// The dropdown after the first query, which answered `result` at `now`.
-    private func dropdown(after result: FetchResult) async -> some View {
+    private func dropdown(after result: FetchResult, settings: PacemarkKit.Settings = PacemarkKit.Settings()) async -> some View {
         let timer = FakeTimer()
         let model = AppModel(provider: FakeProvider(result), clock: { now },
                              sleep: { try await timer.sleep($0) })
+        model.settings = settings
         model.launch()
         _ = await timer.armed()
         return dropdown(model)
