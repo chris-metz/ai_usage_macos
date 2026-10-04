@@ -169,7 +169,7 @@ import Testing
         #expect(await provider.fetch().isLimits)
         #expect(await provider.fetch().isLimits)
 
-        #expect(versionChecks(runner) == 1)
+        #expect(runner.commands(["--version"]).count == 1)
         #expect(usageRuns(runner).count == 2)
     }
 
@@ -185,13 +185,13 @@ import Testing
         let provider = provider(runner)
         #expect(await provider.fetch() == .problem(.claudeCodeTooOld(found: try version("2.1.282"))))
         #expect(await provider.fetch() == .problem(.claudeCodeTooOld(found: try version("2.1.282"))))
-        #expect(versionChecks(runner) == 1)
+        #expect(runner.commands(["--version"]).count == 1)
 
         try FileManager.default.removeItem(at: claude)
         try makeSymlink(at: claude, to: versions.appending(path: "2.1.289"), modified: date(1_791_000_000))
 
         #expect(await provider.fetch().isLimits)
-        #expect(versionChecks(runner) == 2)
+        #expect(runner.commands(["--version"]).count == 2)
     }
 
     /// npm replaces the file behind its `bin` symlink in place: only the
@@ -206,12 +206,12 @@ import Testing
         let provider = provider(runner)
         #expect(await provider.fetch() == .problem(.claudeCodeTooOld(found: try version("2.1.282"))))
         #expect(await provider.fetch() == .problem(.claudeCodeTooOld(found: try version("2.1.282"))))
-        #expect(versionChecks(runner) == 1)
+        #expect(runner.commands(["--version"]).count == 1)
 
         try installClaude("2.1.289", at: target, modified: date(1_791_100_000))
 
         #expect(await provider.fetch().isLimits)
-        #expect(versionChecks(runner) == 2)
+        #expect(runner.commands(["--version"]).count == 2)
     }
 
     @Test func failedVersionCheckRunsAgainOnTheNextQuery() async throws {
@@ -225,12 +225,8 @@ import Testing
 
         #expect(await provider.fetch() == .unavailable)
         #expect(await provider.fetch().isLimits)
-        #expect(versionChecks(runner) == 2)
+        #expect(runner.commands(["--version"]).count == 2)
     }
-}
-
-private func versionChecks(_ runner: FakeRunner) -> Int {
-    runner.commands.filter { $0.arguments == ["--version"] }.count
 }
 
 private func version(_ text: String) throws -> ClaudeVersion {
@@ -275,8 +271,11 @@ private func fakeRunner(
             return .exited(status: 0, stdout: try Data(contentsOf: command.executable), stderr: Data())
         case ["-l", "-i", "-c", "command -v claude"]:
             return .exited(status: shellStdout.isEmpty ? 1 : 0, stdout: Data(shellStdout.utf8), stderr: Data())
+        case let arguments where arguments.last == "/usage":
+            return try .fixture("usage.stream.jsonl")
         default:
-            return .exited(status: 0, stdout: try Fixtures.data("usage.stream.jsonl"), stderr: Data())
+            Issue.record("unexpected invocation \(command.arguments)")
+            throw CocoaError(.executableNotLoadable)
         }
     }
 }

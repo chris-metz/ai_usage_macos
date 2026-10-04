@@ -3,7 +3,8 @@ import PacemarkKit
 import Synchronization
 
 /// Reads the Claude limits through the installed Claude Code: locate the
-/// binary, run `/usage` isolated, parse its `usage_report` (ADR 0001).
+/// binary, check its version, run `/usage` isolated, parse its
+/// `usage_report` (ADR 0001).
 public nonisolated final class ClaudeProvider: Provider {
     public let id = "claude"
     public let name = "Claude"

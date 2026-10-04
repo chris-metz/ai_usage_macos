@@ -193,6 +193,6 @@ private nonisolated struct CurrentVersionRunner: CommandRunner {
 
     func run(_ command: Command) async throws -> CommandResult {
         guard command.arguments == ["--version"] else { return try await next.run(command) }
-        return .exited(status: 0, stdout: try Fixtures.data("version.txt"), stderr: Data())
+        return try .fixture("version.txt")
     }
 }
