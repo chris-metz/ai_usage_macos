@@ -71,30 +71,16 @@ public nonisolated final class ClaudeProvider: Provider {
         }
     }
 
-    /// Runs one invocation and logs its exit status, duration and stderr;
-    /// nil when it couldn't start.
+    /// Runs one invocation in its working directory, created if missing,
+    /// and logs it; nil when it couldn't start.
     private func run(_ command: Command) async -> CommandResult? {
-        let name = command.arguments.last ?? ""
-        let clock = ContinuousClock()
-        let start = clock.now
         do {
             try FileManager.default.createDirectory(at: command.workingDirectory, withIntermediateDirectories: true)
-            let result = try await runner.run(command)
-            let duration = clock.now - start
-            switch result {
-            case .exited(let status, _, let stderr):
-                let stderrText = String(decoding: stderr.prefix(2048), as: UTF8.self)
-                claudeLog.log(
-                    "claude \(name, privacy: .public) exited with status \(status) after \(duration, privacy: .public); stderr: \(stderrText, privacy: .public)"
-                )
-            case .timedOut:
-                claudeLog.error("claude \(name, privacy: .public) timed out after \(duration, privacy: .public)")
-            }
-            return result
         } catch {
-            claudeLog.error("claude \(name, privacy: .public) could not start: \(error, privacy: .public)")
+            claudeLog.error("Could not create the working directory for claude: \(error, privacy: .public)")
             return nil
         }
+        return await runner.runLogged(command)
     }
 
     /// `claude -p … "/usage"`, isolated from the user's settings, hooks and
@@ -109,19 +95,16 @@ public nonisolated final class ClaudeProvider: Provider {
     /// The environment, working directory, stdin and timeout every
     /// invocation of `claude` shares.
     private func isolated(_ claude: URL, arguments: [String]) -> Command {
-        Command(
+        var environment = Command.baseEnvironment(homeDirectory: homeDirectory, userName: userName)
+        environment["DISABLE_AUTOUPDATER"] = "1"
+        environment["DISABLE_TELEMETRY"] = "1"
+        // Never CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: it turns rate_limits into null.
+        return Command(
             executable: claude,
             arguments: arguments,
-            // Never CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: it turns rate_limits into null.
-            environment: [
-                "HOME": homeDirectory.pathWithoutTrailingSlash,
-                "USER": userName,
-                "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
-                "DISABLE_AUTOUPDATER": "1",
-                "DISABLE_TELEMETRY": "1",
-            ],
+            environment: environment,
             workingDirectory: workingDirectory,
-            standardInput: URL(filePath: "/dev/null"),
+            standardInput: Command.noInput,
             timeout: .seconds(30)
         )
     }

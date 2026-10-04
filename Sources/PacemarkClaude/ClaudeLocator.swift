@@ -73,22 +73,19 @@ nonisolated struct ClaudeLocator: Sendable {
     /// user's PATH, and `-i` activates tools like mise that only hook into
     /// interactive shells.
     private func askLoginShell() async -> URL? {
+        // What a terminal gets from launchd; the startup files add the rest.
+        var environment = Command.baseEnvironment(homeDirectory: homeDirectory, userName: userName)
+        environment["LOGNAME"] = userName
+        environment["SHELL"] = loginShell.path(percentEncoded: false)
         let command = Command(
             executable: loginShell,
             arguments: ["-l", "-i", "-c", "command -v claude"],
-            // What a terminal gets from launchd; the startup files add the rest.
-            environment: [
-                "HOME": homeDirectory.pathWithoutTrailingSlash,
-                "USER": userName,
-                "LOGNAME": userName,
-                "SHELL": loginShell.path(percentEncoded: false),
-                "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
-            ],
+            environment: environment,
             workingDirectory: homeDirectory,
-            standardInput: URL(filePath: "/dev/null"),
+            standardInput: Command.noInput,
             timeout: .seconds(5)
         )
-        guard case .exited(_, let stdout, _)? = try? await runner.run(command) else { return nil }
+        guard case .exited(_, let stdout, _)? = await runner.runLogged(command) else { return nil }
         return String(decoding: stdout, as: UTF8.self)
             .split(whereSeparator: \.isNewline)
             .map { $0.trimmingCharacters(in: .whitespaces) }
@@ -114,13 +111,5 @@ nonisolated struct ClaudeLocator: Sendable {
             return URL(filePath: "/bin/zsh")
         }
         return URL(filePath: String(cString: shell))
-    }
-}
-
-nonisolated extension URL {
-    /// The path without a trailing slash, as a shell would set `HOME`.
-    var pathWithoutTrailingSlash: String {
-        let path = path(percentEncoded: false)
-        return path.count > 1 && path.hasSuffix("/") ? String(path.dropLast()) : path
     }
 }
