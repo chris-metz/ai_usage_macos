@@ -113,6 +113,7 @@ public nonisolated func limitDisplay(
     } else {
         (state, paceText, paceTextColor) = (.underPace, "\(-deviation)% under pace", .green)
     }
+    // Exhausted and High come first; High keeps the pace text of `D`.
     if displayed == 100 {
         (state, paceText, paceTextColor) = (.exhausted, "Limit reached", .red)
     } else if displayed >= 90 {

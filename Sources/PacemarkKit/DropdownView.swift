@@ -1,11 +1,14 @@
 import AppKit
 import SwiftUI
 
-/// The content of the menu bar item's window (§3): one line per limit and a
+/// The content of the menu bar item's window (§3): one row per limit and a
 /// footer with Quit. Its state lives in the model, because `MenuBarExtra`
 /// discards view state on close.
 public struct DropdownView: View {
     let model: AppModel
+
+    @Environment(\.timeZone) private var timeZone
+    @Environment(\.locale) private var locale
 
     public init(model: AppModel) {
         self.model = model
@@ -14,14 +17,8 @@ public struct DropdownView: View {
     public var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             ForEach(model.limits) { limit in
-                HStack {
-                    Text(limit.title)
-                    Spacer()
-                    Text(limitDisplay(limit, now: model.now).percentText)
-                        .monospacedDigit()
-                }
-                .font(.system(size: 13, weight: .semibold))
-                .padding(.horizontal, 14)
+                LimitRow(display: limitDisplay(limit, now: model.now, timeZone: timeZone, locale: locale))
+                    .padding(.horizontal, 14)
             }
             Divider()
             HStack {
@@ -38,5 +35,7 @@ public struct DropdownView: View {
         .padding(.top, 12)
         .padding(.bottom, 8)
         .frame(width: 300)
+        // MenuBarExtra rebuilds the view on every open.
+        .onAppear { model.dropdownOpened() }
     }
 }

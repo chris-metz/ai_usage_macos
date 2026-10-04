@@ -25,6 +25,14 @@ import Testing
         ))
     }
 
+    @Test func theAccessibilityTextReadsTheWeekdayFormInLowerCase() {
+        let limit = weekly(utilization: 63, resetsAt: "2026-10-07T01:00:00Z")
+
+        let display = limitDisplay(limit, now: now, timeZone: berlin, locale: enDE)
+
+        #expect(display.accessibilityText == "Weekly limit, 63%, On pace, resets Wed 03:00")
+    }
+
     @Test func aLimitAtItsPaceIsOnPace() {
         // 9000 of 18000 s elapsed: pace 50.
         let limit = session(utilization: 50, resetsAt: "2026-10-04T12:38:00Z")
