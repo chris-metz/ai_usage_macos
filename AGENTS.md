@@ -2,6 +2,10 @@
 
 Write everything in English: code, identifiers, comments, commit messages, docs, ADRs, issues and issue comments. This holds even when the conversation with the user is in German.
 
+## Merging
+
+Merge commit titles on `main` become the release notes (ADR 0003): title each merge as the feature a user reads, e.g. `Merge last update time in the dropdown`.
+
 ## Agent skills
 
 ### Issue tracker
