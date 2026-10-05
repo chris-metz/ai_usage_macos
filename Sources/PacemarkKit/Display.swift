@@ -4,14 +4,14 @@ import Foundation
 public nonisolated struct Display: Equatable, Sendable {
     /// What the dropdown shows above its footer.
     public var dropdown: DropdownContent
-    /// `Couldn't update · Last update 23 min ago` while the values are
-    /// stale; nil otherwise.
-    public var staleLine: String?
+    /// How old the values are: `Updated 4 min ago`, or `Couldn't update ·
+    /// Last update 23 min ago` while they are stale; nil without values.
+    public var updateLine: String?
     public var menuBar: MenuBarDisplay
 
-    public init(dropdown: DropdownContent, staleLine: String?, menuBar: MenuBarDisplay) {
+    public init(dropdown: DropdownContent, updateLine: String?, menuBar: MenuBarDisplay) {
         self.dropdown = dropdown
-        self.staleLine = staleLine
+        self.updateLine = updateLine
         self.menuBar = menuBar
     }
 }
@@ -43,7 +43,7 @@ public nonisolated func display(_ state: ProviderState, providerID: String, sett
     }
     return Display(
         dropdown: dropdown,
-        staleLine: staleAge.map(staleLine),
+        updateLine: staleAge.map(staleLine) ?? updatedLine(state, now: now),
         menuBar: menuBarDisplay(state, providerID: providerID, settings: settings, isStale: staleAge != nil, now: now)
     )
 }
@@ -95,15 +95,27 @@ private nonisolated func staleAge(_ state: ProviderState, interval: TimeInterval
     return age > 2 * interval ? age : nil
 }
 
-/// `Couldn't update · Last update 23 min ago`, with the age in `min` below an
-/// hour, in `hr` below a day and in days from then on, each rounded down.
+/// `Updated 4 min ago`, or `Updated just now` below a minute after the last
+/// success, while there are values; nil otherwise.
+private nonisolated func updatedLine(_ state: ProviderState, now: Date) -> String? {
+    guard state.limits != nil, let lastSuccessAt = state.lastSuccessAt else { return nil }
+    let age = now.timeIntervalSince(lastSuccessAt)
+    return age < 60 ? "Updated just now" : "Updated \(ageText(age)) ago"
+}
+
+/// `Couldn't update · Last update 23 min ago`.
 private nonisolated func staleLine(age: TimeInterval) -> String {
+    "Couldn't update · Last update \(ageText(age)) ago"
+}
+
+/// The age in `min` below an hour, in `hr` below a day and in days from then
+/// on, each rounded down.
+private nonisolated func ageText(_ age: TimeInterval) -> String {
     let minutes = Int(age / 60)
-    let text = switch minutes {
+    return switch minutes {
     case ..<60: "\(minutes) min"
     case ..<(24 * 60): "\(minutes / 60) hr"
     case ..<(2 * 24 * 60): "1 day"
     default: "\(minutes / (24 * 60)) days"
     }
-    return "Couldn't update · Last update \(text) ago"
 }

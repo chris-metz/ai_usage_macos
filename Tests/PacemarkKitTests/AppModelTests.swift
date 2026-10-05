@@ -67,7 +67,7 @@ import Testing
 
         #expect(model.display == Display(
             dropdown: .noValues,
-            staleLine: nil,
+            updateLine: nil,
             menuBar: MenuBarDisplay(content: .glyph(), accessibilityText: "Pacemark")
         ))
     }
@@ -82,12 +82,12 @@ import Testing
         time += 9 * 60
         timer.fire()
         _ = await timer.armed()
-        #expect(model.display.staleLine == nil)
+        #expect(model.display.updateLine == "Updated 9 min ago")
 
         time += 2 * 60
         model.minuteTick()
 
-        #expect(model.display.staleLine == "Couldn't update · Last update 11 min ago")
+        #expect(model.display.updateLine == "Couldn't update · Last update 11 min ago")
         #expect(model.display.menuBar == MenuBarDisplay(
             content: .percentage("14%", isRed: false, isDimmed: true),
             accessibilityText: "Session limit 14%, not up to date"
