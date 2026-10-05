@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 
 /// The content of the menu bar item's window (§3): the limit rows or what
-/// stands in for them, and a footer with the stale line, Settings… and Quit.
+/// stands in for them, and a footer with the update line, Settings… and Quit.
 /// Its state lives in the model, because `MenuBarExtra` discards view state
 /// on close.
 public struct DropdownView: View {
@@ -24,7 +24,7 @@ public struct DropdownView: View {
             content(display.dropdown)
                 .padding(.horizontal, 14)
             Divider()
-            footer(staleLine: display.staleLine)
+            footer(updateLine: display.updateLine)
                 .padding(.horizontal, 14)
         }
         .padding(.top, 12)
@@ -57,10 +57,10 @@ public struct DropdownView: View {
         }
     }
 
-    private func footer(staleLine: String?) -> some View {
+    private func footer(updateLine: String?) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            if let staleLine {
-                Text(staleLine)
+            if let updateLine {
+                Text(updateLine)
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
             }

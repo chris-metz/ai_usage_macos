@@ -12,12 +12,12 @@ import Testing
 
         #expect(result == Display(
             dropdown: .loading,
-            staleLine: nil,
+            updateLine: nil,
             menuBar: MenuBarDisplay(content: .glyph(), accessibilityText: "Pacemark")
         ))
     }
 
-    @Test func valuesShowAsRowsAndTheFirstLimitsPercentageInTheMenuBar() {
+    @Test func valuesShowAsRowsWithTheirAgeAndTheFirstLimitsPercentageInTheMenuBar() {
         let limits = [
             session(utilization: 71, resetsAt: "2026-10-04T12:00:00Z"),
             weekly(utilization: 95, resetsAt: "2026-10-07T01:00:00Z"),
@@ -27,7 +27,7 @@ import Testing
 
         #expect(result == Display(
             dropdown: .limits(limits),
-            staleLine: nil,
+            updateLine: "Updated just now",
             menuBar: MenuBarDisplay(content: .percentage("71%", isRed: false, isDimmed: false), accessibilityText: "Session limit 71%")
         ))
     }
@@ -39,7 +39,7 @@ import Testing
 
         #expect(result == Display(
             dropdown: .problem(notLoggedIn),
-            staleLine: nil,
+            updateLine: nil,
             menuBar: MenuBarDisplay(content: .warning, accessibilityText: "Pacemark: Not logged in")
         ))
     }
@@ -51,7 +51,7 @@ import Testing
 
         #expect(result == Display(
             dropdown: .noValues,
-            staleLine: nil,
+            updateLine: nil,
             menuBar: MenuBarDisplay(content: .glyph(), accessibilityText: "Pacemark")
         ))
     }
@@ -80,7 +80,7 @@ import Testing
         let result = display(state, providerID: "claude", settings: Settings(refreshIntervalMinutes: minutes), now: now)
 
         #expect(result.menuBar.content == .percentage("71%", isRed: false, isDimmed: offset.isStale))
-        #expect((result.staleLine != nil) == offset.isStale)
+        #expect(result.updateLine?.hasPrefix("Couldn't update") == offset.isStale)
     }
 
     @Test func valuesFromALongRunningQueryAreNotStale() {
@@ -90,7 +90,7 @@ import Testing
 
         let result = display(state, providerID: "claude", settings: Settings(), now: now)
 
-        #expect(result.staleLine == nil)
+        #expect(result.updateLine == "Updated 30 min ago")
         #expect(result.menuBar.content == .percentage("71%", isRed: false, isDimmed: false))
     }
 
@@ -115,7 +115,7 @@ import Testing
 
         #expect(result == Display(
             dropdown: .limits(limits),
-            staleLine: "Couldn't update · Last update 23 min ago",
+            updateLine: "Couldn't update · Last update 23 min ago",
             menuBar: MenuBarDisplay(
                 content: .percentage("91%", isRed: true, isDimmed: true),
                 accessibilityText: "Session limit 91%, not up to date"
@@ -197,7 +197,7 @@ import Testing
 
         #expect(result == Display(
             dropdown: .allHidden,
-            staleLine: "Couldn't update · Last update 23 min ago",
+            updateLine: "Couldn't update · Last update 23 min ago",
             menuBar: MenuBarDisplay(
                 content: .percentage("71%", isRed: false, isDimmed: true),
                 accessibilityText: "Session limit 71%, not up to date"
@@ -213,7 +213,7 @@ import Testing
 
         #expect(result == Display(
             dropdown: .limits([threeLimits[0], threeLimits[1]]),
-            staleLine: nil,
+            updateLine: "Updated just now",
             menuBar: MenuBarDisplay(
                 content: .percentage("92%", isRed: true, isDimmed: false),
                 accessibilityText: "Fable limit 92%"
@@ -240,7 +240,29 @@ import Testing
 
         let result = display(state, providerID: "claude", settings: Settings(), now: now)
 
-        #expect(result.staleLine == "Couldn't update · Last update \(text) ago")
+        #expect(result.updateLine == "Couldn't update · Last update \(text) ago")
+    }
+
+    /// Ages in seconds and how the update line says them while the values
+    /// aren't stale.
+    nonisolated static let updatedAges: [(Int, String)] = [
+        (0, "Updated just now"),
+        (59, "Updated just now"),
+        (60, "Updated 1 min ago"),
+        (59 * 60 + 59, "Updated 59 min ago"),
+        (60 * 60, "Updated 1 hr ago"),
+        (24 * 3600, "Updated 1 day ago"),
+        (48 * 3600, "Updated 2 days ago"),
+    ]
+
+    @Test(arguments: updatedAges)
+    func valuesThatAreNotStaleSayHowOldTheyAreRoundedDown(age: Int, text: String) {
+        let lastSuccess = now.addingTimeInterval(-TimeInterval(age))
+        let state = succeeded([session(utilization: 71, resetsAt: "2026-10-04T12:00:00Z")], at: lastSuccess)
+
+        let result = display(state, providerID: "claude", settings: Settings(), now: now)
+
+        #expect(result.updateLine == text)
     }
 }
 
